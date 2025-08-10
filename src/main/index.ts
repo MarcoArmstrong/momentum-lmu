@@ -2,6 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { SharedMemoryReader } from './shared-memory-reader'
+
+let sharedMemoryReader: SharedMemoryReader
 
 function createWindow(): void {
   // Create the browser window.
@@ -49,8 +52,19 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
+  // Initialize shared memory reader
+  sharedMemoryReader = new SharedMemoryReader()
+
+  // IPC handlers
   ipcMain.on('ping', () => console.log('pong'))
+  
+  ipcMain.handle('get-rpm-data', () => {
+    return sharedMemoryReader.readRPMData()
+  })
+  
+  ipcMain.handle('is-game-running', () => {
+    return sharedMemoryReader.isGameRunning()
+  })
 
   createWindow()
 

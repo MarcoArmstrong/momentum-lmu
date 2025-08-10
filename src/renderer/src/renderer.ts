@@ -1,19 +1,47 @@
 function init(): void {
   window.addEventListener('DOMContentLoaded', () => {
-    doAThing()
+    initTelemetry()
   })
 }
 
-function doAThing(): void {
-  const versions = window.electron.process.versions
-  replaceText('.electron-version', `Electron v${versions.electron}`)
-  replaceText('.chrome-version', `Chromium v${versions.chrome}`)
-  replaceText('.node-version', `Node v${versions.node}`)
+function initTelemetry(): void {
+  // Start telemetry polling
+  setInterval(async () => {
+    try {
+      const isRunning = await window.api.isGameRunning()
+      updateConnectionStatus(isRunning)
+      
+      if (isRunning) {
+        const data = await window.api.getRpmData()
+        if (data) {
+          updateTelemetryDisplay(data)
+        }
+      }
+    } catch (error) {
+      console.error('Error reading telemetry:', error)
+      updateConnectionStatus(false)
+    }
+  }, 100) // Update every 100ms
+}
 
-  const ipcHandlerBtn = document.getElementById('ipcHandler')
-  ipcHandlerBtn?.addEventListener('click', () => {
-    window.electron.ipcRenderer.send('ping')
-  })
+function updateTelemetryDisplay(data: any): void {
+  replaceText('#rpm', Math.round(data.rpm).toString())
+  replaceText('#maxRpm', Math.round(data.maxRpm).toString())
+  replaceText('#speed', Math.round(data.speed * 3.6).toString()) // Convert m/s to km/h
+  replaceText('#gear', data.gear.toString())
+}
+
+function updateConnectionStatus(isConnected: boolean): void {
+  const statusElement = document.querySelector<HTMLElement>('#status')
+  if (statusElement) {
+    if (isConnected) {
+      statusElement.textContent = 'Connected to Le Mans Ultimate'
+      statusElement.className = 'text-sm font-semibold text-green-400'
+    } else {
+      statusElement.textContent = 'Disconnected - Start Le Mans Ultimate'
+      statusElement.className = 'text-sm font-semibold text-red-400'
+    }
+  }
 }
 
 function replaceText(selector: string, text: string): void {

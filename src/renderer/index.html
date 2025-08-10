@@ -16,6 +16,39 @@
     <div id="app" class="p-6">
       <h1 class="text-3xl text-gray-200 mb-1">Momentum</h1>
       <p class="text-sm text-gray-200">Le Mans Ultimate overlay input telemetry</p>
+      
+      <div class="mt-8 space-y-4">
+        <div class="bg-gray-900 p-4 rounded-lg">
+          <h2 class="text-xl font-semibold mb-4">Car Telemetry</h2>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-800 p-3 rounded">
+              <div class="text-sm text-gray-400">Engine RPM</div>
+              <div id="rpm" class="text-2xl font-bold text-green-400">--</div>
+            </div>
+            
+            <div class="bg-gray-800 p-3 rounded">
+              <div class="text-sm text-gray-400">Max RPM</div>
+              <div id="maxRpm" class="text-xl text-blue-400">--</div>
+            </div>
+            
+            <div class="bg-gray-800 p-3 rounded">
+              <div class="text-sm text-gray-400">Speed</div>
+              <div id="speed" class="text-xl text-yellow-400">-- km/h</div>
+            </div>
+            
+            <div class="bg-gray-800 p-3 rounded">
+              <div class="text-sm text-gray-400">Gear</div>
+              <div id="gear" class="text-xl text-purple-400">--</div>
+            </div>
+          </div>
+          
+          <div class="mt-4">
+            <div class="text-sm text-gray-400">Connection Status</div>
+            <div id="status" class="text-sm font-semibold text-red-400">Disconnected</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./src/renderer.ts"></script>
