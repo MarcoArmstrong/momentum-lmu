@@ -5,16 +5,6 @@ function init(): void {
 }
 
 function initTelemetry(): void {
-  // Add debug button handler
-  const debugBtn = document.getElementById('debugBtn')
-  debugBtn?.addEventListener('click', async () => {
-    try {
-      await window.api.debugMemory()
-    } catch (error) {
-      console.error('Debug error:', error)
-    }
-  })
-
   // Start telemetry polling
   setInterval(async () => {
     try {
