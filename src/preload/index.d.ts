@@ -12,6 +12,7 @@ declare global {
         engineMaxRpm: number
       } | null>
       isGameRunning: () => Promise<boolean>
+      debugMemory: () => Promise<boolean>
     }
   }
 }

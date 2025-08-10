@@ -4,7 +4,8 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   getRpmData: () => ipcRenderer.invoke('get-rpm-data'),
-  isGameRunning: () => ipcRenderer.invoke('is-game-running')
+  isGameRunning: () => ipcRenderer.invoke('is-game-running'),
+  debugMemory: () => ipcRenderer.invoke('debug-memory')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -65,6 +65,11 @@ app.whenReady().then(() => {
   ipcMain.handle('is-game-running', () => {
     return sharedMemoryReader.isGameRunning()
   })
+  
+  ipcMain.handle('debug-memory', () => {
+    sharedMemoryReader.debugDumpMemory()
+    return true
+  })
 
   createWindow()
 

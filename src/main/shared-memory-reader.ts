@@ -28,9 +28,19 @@ export class SharedMemoryReader {
       try {
         console.log(`Trying to connect to shared memory: ${memoryName}`)
         this.sharedMemory = sharedMemory.open(memoryName, 32768)
-        this.isConnected = true
-        console.log(`Successfully connected to: ${memoryName}`)
-        return
+        
+        // Test if we can actually read from it
+        try {
+          const testBuffer = this.sharedMemory.read(0, 4)
+          const buildVersion = testBuffer.readInt32LE(0x0)
+          console.log(`Successfully connected to: ${memoryName}, Build version: ${buildVersion}`)
+          this.isConnected = true
+          return
+        } catch (readError) {
+          console.log(`Connected to ${memoryName} but cannot read data:`, (readError as Error).message)
+          this.sharedMemory.close()
+          this.sharedMemory = null
+        }
       } catch (error) {
         console.log(`Failed to connect to ${memoryName}:`, (error as Error).message)
       }
@@ -40,6 +50,7 @@ export class SharedMemoryReader {
     console.error('1. Le Mans Ultimate is running')
     console.error('2. rFactor2SharedMemoryMapPlugin64.dll is installed in Le Mans Ultimate\\Plugins folder')
     console.error('3. Plugin is enabled in CustomPluginVariables.JSON')
+    console.error('4. Game is in Borderless or Windowed mode (not Fullscreen)')
     this.isConnected = false
   }
 
@@ -102,6 +113,25 @@ export class SharedMemoryReader {
     if (this.sharedMemory) {
       this.sharedMemory.close()
       this.isConnected = false
+    }
+  }
+
+  // Debug method to dump first 64 bytes of shared memory
+  public debugDumpMemory(): void {
+    if (!this.isConnected || !this.sharedMemory) {
+      console.log('Not connected to shared memory')
+      return
+    }
+
+    try {
+      const buffer = this.sharedMemory.read(0, 64)
+      console.log('First 64 bytes of shared memory:')
+      for (let i = 0; i < 64; i += 4) {
+        const value = buffer.readInt32LE(i)
+        console.log(`Offset 0x${i.toString(16).padStart(2, '0')}: ${value}`)
+      }
+    } catch (error) {
+      console.error('Error dumping memory:', error)
     }
   }
 }
