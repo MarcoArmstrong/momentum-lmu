@@ -70,6 +70,15 @@ app.whenReady().then(() => {
     sharedMemoryReader.debugDumpMemory()
     return true
   })
+  
+  ipcMain.handle('toggle-mode', () => {
+    sharedMemoryReader.toggleMockMode()
+    return sharedMemoryReader.getCurrentMode()
+  })
+  
+  ipcMain.handle('get-mode', () => {
+    return sharedMemoryReader.getCurrentMode()
+  })
 
   createWindow()
 

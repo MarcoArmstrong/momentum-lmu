@@ -5,7 +5,9 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   getRpmData: () => ipcRenderer.invoke('get-rpm-data'),
   isGameRunning: () => ipcRenderer.invoke('is-game-running'),
-  debugMemory: () => ipcRenderer.invoke('debug-memory')
+  debugMemory: () => ipcRenderer.invoke('debug-memory'),
+  toggleMode: () => ipcRenderer.invoke('toggle-mode'),
+  getMode: () => ipcRenderer.invoke('get-mode')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
