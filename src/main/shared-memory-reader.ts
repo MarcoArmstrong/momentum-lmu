@@ -3,26 +3,6 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-// Import shm-typed-array for cross-platform shared memory
-let shm: any = null
-try {
-  shm = require('shm-typed-array')
-} catch (error) {
-  console.log('shm-typed-array not available, falling back to platform-specific implementations')
-}
-
-// Windows-specific dependencies - only load on Windows
-let ffi: any = null
-let ref: any = null
-if (process.platform === 'win32') {
-  try {
-    ffi = require('ffi-napi')
-    ref = require('ref-napi')
-  } catch (error: any) {
-    console.log('Windows shared memory dependencies not available:', error.message)
-  }
-}
-
 // Real rF2 shared memory data structure
 interface rF2Data {
   rpm: number
@@ -44,8 +24,6 @@ export class SharedMemoryReader {
   private mockCounter = 0
   private useMock = process.platform !== 'win32' // Use mock on non-Windows platforms
   private sharedMemoryHandle: any = null
-  private shmBuffer: any = null
-  private shmKey: string | number | null = null
 
   constructor() {
     this.initTelemetry()
@@ -96,14 +74,11 @@ export class SharedMemoryReader {
       
       // Check if we're on macOS
       if (process.platform === 'darwin') {
-        console.log('macOS detected - using shm-typed-array approach')
+        console.log('macOS detected - using alternative approach')
         await this.tryMacOSSharedMemory()
-      } else if (process.platform === 'win32') {
+      } else {
         console.log('Windows detected - using Windows shared memory')
         await this.tryWindowsSharedMemory()
-      } else {
-        console.log('Linux detected - using shm-typed-array approach')
-        await this.tryLinuxSharedMemory()
       }
     } catch (error) {
       console.error('Failed to connect to shared memory:', error)
@@ -114,21 +89,16 @@ export class SharedMemoryReader {
   }
 
   private async tryMacOSSharedMemory(): Promise<void> {
-    if (!shm) {
-      console.log('shm-typed-array not available, using mock data')
-      this.useMock = true
-      this.initMockData()
-      return
-    }
-
+    // On macOS, we'll try to use a different approach
+    // For now, we'll check if the game process is running
     try {
-      // Check if the game process is running
       const { stdout } = await execAsync('ps aux | grep -i "le mans ultimate" | grep -v grep')
       if (stdout.trim()) {
         console.log('Le Mans Ultimate process detected')
-        
-        // Try to connect to existing shared memory or create new one
-        await this.tryShmConnection()
+        // TODO: Implement macOS shared memory reading
+        // For now, fall back to mock
+        this.useMock = true
+        this.initMockData()
       } else {
         console.log('Le Mans Ultimate not running')
         this.useMock = true
@@ -136,82 +106,6 @@ export class SharedMemoryReader {
       }
     } catch (error) {
       console.log('Error checking for game process:', error)
-      this.useMock = true
-      this.initMockData()
-    }
-  }
-
-  private async tryLinuxSharedMemory(): Promise<void> {
-    if (!shm) {
-      console.log('shm-typed-array not available, using mock data')
-      this.useMock = true
-      this.initMockData()
-      return
-    }
-
-    try {
-      // Check if the game process is running
-      const { stdout } = await execAsync('ps aux | grep -i "le mans ultimate" | grep -v grep')
-      if (stdout.trim()) {
-        console.log('Le Mans Ultimate process detected')
-        
-        // Try to connect to existing shared memory or create new one
-        await this.tryShmConnection()
-      } else {
-        console.log('Le Mans Ultimate not running')
-        this.useMock = true
-        this.initMockData()
-      }
-    } catch (error) {
-      console.log('Error checking for game process:', error)
-      this.useMock = true
-      this.initMockData()
-    }
-  }
-
-  private async tryShmConnection(): Promise<void> {
-    try {
-      // Try different shared memory keys for rFactor 2
-      const memoryKeys = [
-        '/rFactor2SMMPData',
-        '/rFactor2SMMPData_0',
-        '/rFactor2SMMPData_1',
-        '/rFactor2SMMPData_2',
-        'rFactor2SMMPData',
-        'rFactor2SMMPData_0',
-        'rFactor2SMMPData_1',
-        'rFactor2SMMPData_2'
-      ]
-
-      for (const key of memoryKeys) {
-        try {
-          console.log(`Trying to connect to shared memory: ${key}`)
-          
-          // Try to get existing shared memory
-          let buffer = shm.get(key, 'Buffer')
-          
-          if (!buffer) {
-            // Try to create new shared memory segment
-            buffer = shm.create(32768, 'Buffer', key)
-          }
-          
-          if (buffer) {
-            this.shmBuffer = buffer
-            this.shmKey = key
-            this.isConnected = true
-            console.log(`Successfully connected to: ${key}`)
-            return
-          }
-        } catch (error) {
-          console.log(`Failed to connect to ${key}:`, error)
-        }
-      }
-      
-      console.log('Failed to connect to any shared memory')
-      this.useMock = true
-      this.initMockData()
-    } catch (error) {
-      console.error('Error in shm connection:', error)
       this.useMock = true
       this.initMockData()
     }
@@ -221,8 +115,11 @@ export class SharedMemoryReader {
     try {
       console.log('Attempting to connect to Windows shared memory...')
       
-      // Check if Windows dependencies are available
-      if (process.platform === 'win32' && ffi && ref) {
+      // Dynamic import for Windows-specific modules
+      if (process.platform === 'win32') {
+        const ffi = require('ffi-napi')
+        const ref = require('ref-napi')
+        
         // Windows API functions for shared memory
         const kernel32 = ffi.Library('kernel32', {
           'OpenFileMappingA': ['pointer', ['ulong', 'bool', 'string']],
@@ -232,6 +129,7 @@ export class SharedMemoryReader {
         })
 
         const FILE_MAP_READ = 0x0004
+        const PAGE_READONLY = 0x0002
 
         // Try different shared memory names
         const memoryNames = [
@@ -266,7 +164,7 @@ export class SharedMemoryReader {
         this.useMock = true
         this.initMockData()
       } else {
-        console.log('Windows shared memory dependencies not available, using mock data')
+        console.log('Not on Windows, using mock data')
         this.useMock = true
         this.initMockData()
       }
@@ -292,57 +190,13 @@ export class SharedMemoryReader {
   }
 
   private readFromSharedMemory(): rF2Data | null {
-    if (this.shmBuffer) {
-      // Read from shm-typed-array buffer
-      return this.readFromShmBuffer()
-    } else if (this.sharedMemoryHandle && process.platform === 'win32') {
-      // Read from Windows shared memory
-      return this.readFromWindowsSharedMemory()
-    }
-    
-    return null
-  }
-
-  private readFromShmBuffer(): rF2Data | null {
-    try {
-      if (!this.shmBuffer) {
-        return null
-      }
-
-      // Check if we have valid data (game is running)
-      const buildVersionNumber = this.shmBuffer.readInt32LE(0x0)
-      if (buildVersionNumber === 0) {
-        return null // Game not running or no valid data
-      }
-
-      // Read telemetry data from shared memory
-      const data: rF2Data = {
-        rpm: this.shmBuffer.readFloatLE(0x1C), // Engine RPM
-        maxRpm: this.shmBuffer.readFloatLE(0x20), // Max RPM
-        speed: this.shmBuffer.readFloatLE(0x24), // Speed in m/s
-        gear: this.shmBuffer.readInt8(0x28), // Current gear
-        engineMaxRpm: this.shmBuffer.readFloatLE(0x2C) // Engine max RPM
-      }
-
-      // Validate data
-      if (data.rpm < 0 || data.rpm > 50000 || data.speed < 0 || data.speed > 1000) {
-        return null // Invalid data
-      }
-
-      return data
-    } catch (error) {
-      console.error('Error reading shm buffer:', error)
-      return null
-    }
-  }
-
-  private readFromWindowsSharedMemory(): rF2Data | null {
-    if (!this.sharedMemoryHandle || process.platform !== 'win32' || !ref) {
+    if (!this.sharedMemoryHandle || process.platform !== 'win32') {
       return null
     }
 
     try {
       const { view } = this.sharedMemoryHandle
+      const ref = require('ref-napi')
       const buffer = ref.reinterpret(view, 32768, 0, ref.types.void)
 
       // Check if we have valid data (game is running)
@@ -377,16 +231,6 @@ export class SharedMemoryReader {
   }
 
   public disconnect(): void {
-    if (this.shmBuffer && this.shmKey && shm) {
-      try {
-        shm.detach(this.shmKey)
-        this.shmBuffer = null
-        this.shmKey = null
-      } catch (error) {
-        console.error('Error detaching shm buffer:', error)
-      }
-    }
-    
     if (this.sharedMemoryHandle && process.platform === 'win32') {
       try {
         const { handle, view, kernel32 } = this.sharedMemoryHandle
@@ -444,27 +288,5 @@ export class SharedMemoryReader {
   // Method to get current mode
   public getCurrentMode(): string {
     return this.useMock ? 'mock' : 'real'
-  }
-
-  // Method to get shared memory info
-  public getSharedMemoryInfo(): any {
-    if (this.shmBuffer && shm) {
-      return {
-        type: 'shm-typed-array',
-        key: this.shmKey,
-        totalSize: shm.getTotalSize(),
-        totalCreatedSize: shm.getTotalCreatedSize()
-      }
-    } else if (this.sharedMemoryHandle) {
-      return {
-        type: 'windows-shared-memory',
-        handle: this.sharedMemoryHandle ? 'active' : 'none'
-      }
-    } else {
-      return {
-        type: 'mock',
-        message: 'No shared memory connection'
-      }
-    }
   }
 }
