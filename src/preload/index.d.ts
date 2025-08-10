@@ -13,8 +13,6 @@ declare global {
       } | null>
       isGameRunning: () => Promise<boolean>
       debugMemory: () => Promise<boolean>
-      toggleMode: () => Promise<string>
-      getMode: () => Promise<string>
     }
   }
 }

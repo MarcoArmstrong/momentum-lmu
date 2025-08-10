@@ -15,20 +15,6 @@ function initTelemetry(): void {
     }
   })
 
-  // Add toggle button handler
-  const toggleBtn = document.getElementById('toggleBtn')
-  toggleBtn?.addEventListener('click', async () => {
-    try {
-      const newMode = await window.api.toggleMode()
-      updateModeDisplay(newMode)
-    } catch (error) {
-      console.error('Toggle error:', error)
-    }
-  })
-
-  // Initialize mode display
-  updateModeDisplay('mock')
-
   // Start telemetry polling
   setInterval(async () => {
     try {
@@ -59,20 +45,12 @@ function updateConnectionStatus(isConnected: boolean): void {
   const statusElement = document.querySelector<HTMLElement>('#status')
   if (statusElement) {
     if (isConnected) {
-      statusElement.textContent = 'Connected to Telemetry'
+      statusElement.textContent = 'Connected to Le Mans Ultimate'
       statusElement.className = 'text-sm font-semibold text-green-400'
     } else {
       statusElement.textContent = 'Disconnected - Start Le Mans Ultimate'
       statusElement.className = 'text-sm font-semibold text-red-400'
     }
-  }
-}
-
-function updateModeDisplay(mode: string): void {
-  const modeElement = document.querySelector<HTMLElement>('#mode')
-  if (modeElement) {
-    modeElement.textContent = mode.charAt(0).toUpperCase() + mode.slice(1)
-    modeElement.className = mode === 'real' ? 'font-semibold text-green-400' : 'font-semibold text-yellow-400'
   }
 }
 
