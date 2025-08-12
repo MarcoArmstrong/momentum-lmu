@@ -2,9 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { SharedMemoryReader } from './shared-memory-reader'
+import { TelemetryReader } from './telemetry-reader'
 
-let sharedMemoryReader: SharedMemoryReader
+let telemetryReader: TelemetryReader
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,18 +52,26 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Initialize shared memory reader
-  sharedMemoryReader = new SharedMemoryReader()
+  // Initialize unified telemetry reader (tries both shared memory and REST API)
+  telemetryReader = new TelemetryReader()
 
   // IPC handlers
   ipcMain.on('ping', () => console.log('pong'))
   
-  ipcMain.handle('get-rpm-data', () => {
-    return sharedMemoryReader.readRPMData()
+  ipcMain.handle('get-rpm-data', async () => {
+    return await telemetryReader.readTelemetryData()
   })
   
   ipcMain.handle('is-game-running', () => {
-    return sharedMemoryReader.isGameRunning()
+    return telemetryReader.isGameRunning()
+  })
+  
+  ipcMain.handle('get-connection-status', () => {
+    return telemetryReader.getConnectionStatus()
+  })
+  
+  ipcMain.handle('get-connection-method', () => {
+    return telemetryReader.getCurrentMethod()
   })
 
   createWindow()
