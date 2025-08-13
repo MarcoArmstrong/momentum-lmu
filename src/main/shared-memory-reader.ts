@@ -17,14 +17,9 @@ const CloseHandle = kernel32.func('CloseHandle', 'bool', ['void*'])
 // GetLastError function available for debugging if needed
 // const GetLastError = kernel32.func('GetLastError', 'uint32', [])
 
-// Constants - try different access flags
+// Constants for shared memory access
 const FILE_MAP_READ = 0x0004
 const SECTION_MAP_READ = 0x0004
-const SECTION_MAP_WRITE = 0x0002
-const SECTION_MAP_EXECUTE = 0x0008
-const STANDARD_RIGHTS_READ = 0x00020000
-const SECTION_QUERY = 0x0001
-const SECTION_EXTEND_SIZE = 0x0010
 
 // rF2 Shared Memory Data Structure (based on TinyPedal's pyRfactor2SharedMemory)
 interface rF2Data {
@@ -63,64 +58,9 @@ export class SharedMemoryReader {
   private workingMemoryName: string | null = null
   private workingAccessMethod: number | null = null
 
-  // Correct shared memory names based on Reddit discovery
+  // rFactor 2 shared memory name - this is the main telemetry object that contains all vehicle data
   private sharedMemoryNames = [
-    // Main telemetry object (most important)
-    '$rFactor2SMMP_Telemetry$',
-
-    // Other shared memory objects
-    '$rFactor2SMMP_Scoring$',
-    '$rFactor2SMMP_Weather$',
-    '$rFactor2SMMP_Game$',
-    '$rFactor2SMMP_Input$',
-    '$rFactor2SMMP_Graphics$',
-    '$rFactor2SMMP_Pit$',
-    '$rFactor2SMMP_Camera$',
-    '$rFactor2SMMP_Radio$',
-    '$rFactor2SMMP_Time$',
-    '$rFactor2SMMP_Flags$',
-    '$rFactor2SMMP_Player$',
-    '$rFactor2SMMP_Drivers$',
-    '$rFactor2SMMP_Vehicles$',
-    '$rFactor2SMMP_Classes$',
-    '$rFactor2SMMP_Results$',
-    '$rFactor2SMMP_Standings$',
-    '$rFactor2SMMP_Leaderboard$',
-    '$rFactor2SMMP_Statistics$',
-    '$rFactor2SMMP_Data$',
-
-    // Variations without $ prefix/suffix (just in case)
-    'rFactor2SMMP_Telemetry',
-    'rFactor2SMMP_Scoring',
-    'rFactor2SMMP_Weather',
-    'rFactor2SMMP_Game',
-    'rFactor2SMMP_Input',
-    'rFactor2SMMP_Graphics',
-    'rFactor2SMMP_Pit',
-    'rFactor2SMMP_Camera',
-    'rFactor2SMMP_Radio',
-    'rFactor2SMMP_Time',
-    'rFactor2SMMP_Flags',
-    'rFactor2SMMP_Player',
-    'rFactor2SMMP_Drivers',
-    'rFactor2SMMP_Vehicles',
-    'rFactor2SMMP_Classes',
-    'rFactor2SMMP_Results',
-    'rFactor2SMMP_Standings',
-    'rFactor2SMMP_Leaderboard',
-    'rFactor2SMMP_Statistics',
-    'rFactor2SMMP_Data',
-
-    // Legacy names (fallback)
-    'Local\\rFactor2SMMPData',
-    'rFactor2SMMPData',
-    'Local\\SMMPData',
-    'SMMPData',
-    'Global\\rF2SMMPData_2',
-    'Global\\SMMPData',
-    'Global\\SMMPData_0',
-    'Global\\SMMPData_1',
-    'Global\\SMMPData_2'
+    '$rFactor2SMMP_Telemetry$'
   ]
 
   constructor() {
@@ -132,7 +72,6 @@ export class SharedMemoryReader {
 
   private initSharedMemory(): void {
     console.log('🔍 Initializing shared memory connection...')
-    console.log('📋 Will try multiple shared memory names and access methods')
 
     // If we have a working configuration, try it first
     if (this.workingMemoryName && this.workingAccessMethod !== null) {
@@ -144,45 +83,24 @@ export class SharedMemoryReader {
       }
     }
 
-    // Try different access methods
-    const accessMethods = [
-      { name: 'SECTION_MAP_READ', flag: SECTION_MAP_READ },
-      { name: 'SECTION_MAP_READ | SECTION_MAP_WRITE', flag: SECTION_MAP_READ | SECTION_MAP_WRITE },
-      {
-        name: 'STANDARD_RIGHTS_READ | SECTION_MAP_READ',
-        flag: STANDARD_RIGHTS_READ | SECTION_MAP_READ
-      },
-      {
-        name: 'SECTION_ALL_ACCESS',
-        flag:
-          SECTION_QUERY |
-          SECTION_MAP_READ |
-          SECTION_MAP_WRITE |
-          SECTION_MAP_EXECUTE |
-          SECTION_EXTEND_SIZE
-      }
-    ]
+    // Try to connect to the telemetry shared memory
+    const memoryName = this.sharedMemoryNames[0]
+    const accessFlag = SECTION_MAP_READ
 
-    // Try each memory name with each access method
-    for (const memoryName of this.sharedMemoryNames) {
-      for (const method of accessMethods) {
-        console.log(`🔧 Trying ${memoryName} with ${method.name}`)
+    console.log(`🔧 Trying to connect to: ${memoryName}`)
 
-        if (this.tryConnect(memoryName, method.flag)) {
-          this.workingMemoryName = memoryName
-          this.workingAccessMethod = method.flag
-          console.log(`✅ Successfully connected to: ${memoryName} using ${method.name}`)
-          return
-        }
-      }
+    if (this.tryConnect(memoryName, accessFlag)) {
+      this.workingMemoryName = memoryName
+      this.workingAccessMethod = accessFlag
+      console.log(`✅ Successfully connected to: ${memoryName}`)
+      return
     }
 
-    console.error('❌ Failed to connect to any shared memory. This could mean:')
+    console.error('❌ Failed to connect to shared memory. This could mean:')
     console.error('1. Le Mans Ultimate is not running')
     console.error('2. You are not driving in the game (try starting a practice session)')
     console.error('3. The rF2SharedMemoryMapPlugin is not properly installed/enabled')
-    console.error('4. The plugin uses different shared memory names')
-    console.error('5. The game needs to be in a specific state (driving on track)')
+    console.error('4. The game needs to be in a specific state (driving on track)')
 
     this.isConnected = false
 
@@ -337,19 +255,7 @@ export class SharedMemoryReader {
     }
   }
 
-  // Helper methods to read different data types from buffer (unused but kept for reference)
-  // private readInt32LE(buffer: Uint8Array, offset: number): number {
-  //   return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24)
-  // }
 
-  // private readFloatLE(buffer: Uint8Array, offset: number): number {
-  //   const view = new DataView(buffer.buffer, buffer.byteOffset + offset, 4)
-  //   return view.getFloat32(0, true) // true = little endian
-  // }
-
-  // private readInt8(buffer: Uint8Array, offset: number): number {
-  //   return buffer[offset]
-  // }
 
   private readString(buffer: Uint8Array, offset: number, length: number): string {
     const bytes = buffer.slice(offset, offset + length)
