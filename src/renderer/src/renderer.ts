@@ -28,7 +28,7 @@ function initTelemetry(): void {
 function updateTelemetryDisplay(data: any): void {
   replaceText('#rpm', Math.round(data.rpm).toString())
   replaceText('#maxRpm', Math.round(data.maxRpm).toString())
-  replaceText('#speed', data.speed.toFixed(1)) // Speed is already in km/h from shared memory
+  replaceText('#speed', data.speed.toFixed(0)) // Speed is already in km/h from shared memory
   replaceText('#gear', `Raw: ${data.gear} (${typeof data.gear})`)
 }
 
