@@ -252,13 +252,12 @@ export class SharedMemoryReader {
       const view = new DataView(buffer.buffer, buffer.byteOffset, 32768)
 
       // Telemetry data offsets for Le Mans Ultimate
-      const gear = view.getInt32(0x000c, true) // Gear
+      const gear = view.getInt32(0x0170, true) // Gear - FOUND CORRECT OFFSET!
       const rpm = view.getInt32(0x0008, true) // RPM
       const maxRpm = 8000 // Default max RPM for most cars
 
-      // Speed - convert from raw value to km/h
-      const speedRaw = view.getFloat32(0x0730, true)
-      const speed = speedRaw / 3.58 // Conversion factor for accurate speed display
+      // Speed - temporarily set to 0 until we find the correct offset
+      const speed = 0 // TODO: Find correct speed offset
 
       const data: rF2Data = {
         buildVersionNumber: buildVersionNumber,

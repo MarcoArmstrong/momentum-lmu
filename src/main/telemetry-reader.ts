@@ -51,47 +51,28 @@ export class TelemetryReader {
     // Wait a bit for initialization
     await new Promise(resolve => setTimeout(resolve, 2000))
     
-    // Check shared memory first (better performance, real-time data)
+    // Only use shared memory - REST API is not reliable for real-time data
     if (this.sharedMemoryReader.isGameRunning()) {
       // Verify shared memory is actually working by trying to read data
       const testData = this.sharedMemoryReader.readRPMData()
-      if (testData && this.isValidSharedMemoryData(testData)) {
+      console.log('🔍 Detection - Shared memory test data:', testData)
+      if (testData) {
         this.currentMethod = 'sharedmemory'
         this.connectionStatus = 'Connected via Shared Memory'
+        console.log('✅ Detection - Using shared memory only')
         return
       }
     }
     
-    // Check REST API as fallback
-    if (this.restApiReader.isGameRunning()) {
-      this.currentMethod = 'restapi'
-      this.connectionStatus = 'Connected via REST API'
-      return
-    }
-    
     this.currentMethod = 'none'
     this.connectionStatus = 'Disconnected - Start Le Mans Ultimate'
+    console.log('❌ Detection - Shared memory not available')
     
-    // Keep trying to detect a working method
+    // Keep trying to detect shared memory
     this.startDetectionRetry()
   }
 
-  private isValidSharedMemoryData(data: rF2Data): boolean {
-    // Check for obviously invalid data that indicates shared memory is not working
-    if (isNaN(data.speed) || data.speed < 0 || data.speed > 350) {
-      return false
-    }
-    
-    if (isNaN(data.rpm) || data.rpm < 0 || data.rpm > 25000) {
-      return false
-    }
-    
-    if (isNaN(data.gear) || data.gear < -1 || data.gear > 10) {
-      return false
-    }
-    
-    return true
-  }
+
 
   private startDetectionRetry(): void {
     setInterval(async () => {
@@ -103,26 +84,19 @@ export class TelemetryReader {
 
   public async readTelemetryData(): Promise<rF2Data | null> {
     switch (this.currentMethod) {
-      case 'restapi': {
-        const restApiData = await this.restApiReader.readRPMData()
-        if (restApiData) {
-          this.connectionStatus = 'Connected via REST API'
-          return restApiData
-        } else {
-          // REST API failed, try shared memory
-          this.currentMethod = 'none'
-          await this.detectWorkingMethod()
-          return null
-        }
-      }
-        
       case 'sharedmemory': {
         const sharedMemoryData = this.sharedMemoryReader.readRPMData()
-        if (sharedMemoryData && this.isValidSharedMemoryData(sharedMemoryData)) {
+        if (sharedMemoryData) {
+          console.log('🔍 Telemetry reader - Raw shared memory data:', { 
+            rpm: sharedMemoryData.rpm, 
+            speed: sharedMemoryData.speed, 
+            gear: sharedMemoryData.gear 
+          })
           this.connectionStatus = 'Connected via Shared Memory'
           return sharedMemoryData
         } else {
-          // Shared memory failed or provided invalid data, try REST API
+          console.log('⚠️ Telemetry reader - No shared memory data')
+          // Shared memory failed, try to reconnect
           this.currentMethod = 'none'
           await this.detectWorkingMethod()
           return null
@@ -139,8 +113,6 @@ export class TelemetryReader {
     switch (this.currentMethod) {
       case 'sharedmemory':
         return this.sharedMemoryReader.isGameRunning()
-      case 'restapi':
-        return this.restApiReader.isGameRunning()
       default:
         return false
     }

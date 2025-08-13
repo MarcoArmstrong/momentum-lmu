@@ -29,7 +29,7 @@ function updateTelemetryDisplay(data: any): void {
   replaceText('#rpm', Math.round(data.rpm).toString())
   replaceText('#maxRpm', Math.round(data.maxRpm).toString())
   replaceText('#speed', Math.round(data.speed).toString()) // Speed is already in km/h from shared memory
-  replaceText('#gear', data.gear.toString())
+  replaceText('#gear', `Raw: ${data.gear} (${typeof data.gear})`)
 }
 
 async function updateConnectionStatus(isConnected: boolean): Promise<void> {
