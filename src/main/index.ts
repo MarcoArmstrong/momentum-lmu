@@ -13,6 +13,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    alwaysOnTop: true, // Keep window on top of other applications (like the game)
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -50,6 +51,15 @@ app.whenReady().then(() => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+    
+    // Add keyboard shortcut to toggle always-on-top (Ctrl+Shift+T)
+    window.webContents.on('before-input-event', (event, input) => {
+      if (input.control && input.shift && input.key.toLowerCase() === 't') {
+        const isOnTop = window.isAlwaysOnTop()
+        window.setAlwaysOnTop(!isOnTop)
+        console.log(`Always on top: ${!isOnTop ? 'enabled' : 'disabled'}`)
+      }
+    })
   })
 
   // Initialize unified telemetry reader (tries both shared memory and REST API)
@@ -72,6 +82,10 @@ app.whenReady().then(() => {
   
   ipcMain.handle('get-connection-method', () => {
     return telemetryReader.getCurrentMethod()
+  })
+  
+  ipcMain.handle('get-debug-info', () => {
+    return telemetryReader.getDebugInfo()
   })
 
   createWindow()

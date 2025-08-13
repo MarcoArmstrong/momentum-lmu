@@ -12,6 +12,9 @@ declare global {
         engineMaxRpm: number
       } | null>
       isGameRunning: () => Promise<boolean>
+      getConnectionStatus: () => Promise<string>
+      getConnectionMethod: () => Promise<string>
+      getDebugInfo: () => Promise<object>
     }
   }
 }

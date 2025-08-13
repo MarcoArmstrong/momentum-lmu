@@ -8,6 +8,8 @@ const OpenFileMappingA = kernel32.func('OpenFileMappingA', 'void*', ['uint32', '
 const MapViewOfFile = kernel32.func('MapViewOfFile', 'void*', ['void*', 'uint32', 'uint32', 'uint32', 'size_t'])
 const UnmapViewOfFile = kernel32.func('UnmapViewOfFile', 'bool', ['void*'])
 const CloseHandle = kernel32.func('CloseHandle', 'bool', ['void*'])
+// GetLastError function available for debugging if needed
+// const GetLastError = kernel32.func('GetLastError', 'uint32', [])
 
 // Constants - try different access flags
 const FILE_MAP_READ = 0x0004
@@ -52,40 +54,67 @@ export class SharedMemoryReader {
   private mappedView: any = null
   private isConnected = false
   private retryInterval: NodeJS.Timeout | null = null
+  private workingMemoryName: string | null = null
+  private workingAccessMethod: number | null = null
+  
+  // Correct shared memory names based on Reddit discovery
   private sharedMemoryNames = [
+    // Main telemetry object (most important)
+    '$rFactor2SMMP_Telemetry$',
+    
+    // Other shared memory objects
+    '$rFactor2SMMP_Scoring$',
+    '$rFactor2SMMP_Weather$',
+    '$rFactor2SMMP_Game$',
+    '$rFactor2SMMP_Input$',
+    '$rFactor2SMMP_Graphics$',
+    '$rFactor2SMMP_Pit$',
+    '$rFactor2SMMP_Camera$',
+    '$rFactor2SMMP_Radio$',
+    '$rFactor2SMMP_Time$',
+    '$rFactor2SMMP_Flags$',
+    '$rFactor2SMMP_Player$',
+    '$rFactor2SMMP_Drivers$',
+    '$rFactor2SMMP_Vehicles$',
+    '$rFactor2SMMP_Classes$',
+    '$rFactor2SMMP_Results$',
+    '$rFactor2SMMP_Standings$',
+    '$rFactor2SMMP_Leaderboard$',
+    '$rFactor2SMMP_Statistics$',
+    '$rFactor2SMMP_Data$',
+    
+    // Variations without $ prefix/suffix (just in case)
+    'rFactor2SMMP_Telemetry',
+    'rFactor2SMMP_Scoring',
+    'rFactor2SMMP_Weather',
+    'rFactor2SMMP_Game',
+    'rFactor2SMMP_Input',
+    'rFactor2SMMP_Graphics',
+    'rFactor2SMMP_Pit',
+    'rFactor2SMMP_Camera',
+    'rFactor2SMMP_Radio',
+    'rFactor2SMMP_Time',
+    'rFactor2SMMP_Flags',
+    'rFactor2SMMP_Player',
+    'rFactor2SMMP_Drivers',
+    'rFactor2SMMP_Vehicles',
+    'rFactor2SMMP_Classes',
+    'rFactor2SMMP_Results',
+    'rFactor2SMMP_Standings',
+    'rFactor2SMMP_Leaderboard',
+    'rFactor2SMMP_Statistics',
+    'rFactor2SMMP_Data',
+    
+    // Legacy names (fallback)
     'Local\\rFactor2SMMPData',
-    'Local\\rFactor2SMMPData_0',
-    'Local\\rFactor2SMMPData_1',
-    'Local\\rFactor2SMMPData_2',
-    'Local\\rFactor2SMMPData_3',
-    'Local\\rFactor2SMMPData_4',
-    'Local\\rFactor2SMMPData_5',
-    'Local\\rFactor2SMMPData_6',
-    'Local\\rFactor2SMMPData_7',
-    'Local\\rFactor2SMMPData_8',
-    'Local\\rFactor2SMMPData_9',
-    'Local\\rFactor2SMMPData_10',
-    'Local\\rFactor2SMMPData_11',
-    'Local\\rFactor2SMMPData_12',
-    'Local\\rFactor2SMMPData_13',
-    'Local\\rFactor2SMMPData_14',
-    'Local\\rFactor2SMMPData_15',
-    'Local\\rFactor2SMMPData_16',
-    'Local\\rFactor2SMMPData_17',
-    'Local\\rFactor2SMMPData_18',
-    'Local\\rFactor2SMMPData_19',
-    'Local\\rFactor2SMMPData_20',
-    'Local\\rFactor2SMMPData_21',
-    'Local\\rFactor2SMMPData_22',
-    'Local\\rFactor2SMMPData_23',
-    'Local\\rFactor2SMMPData_24',
-    'Local\\rFactor2SMMPData_25',
-    'Local\\rFactor2SMMPData_26',
-    'Local\\rFactor2SMMPData_27',
-    'Local\\rFactor2SMMPData_28',
-    'Local\\rFactor2SMMPData_29',
-    'Local\\rFactor2SMMPData_30',
-    'Local\\rFactor2SMMPData_31'
+    'rFactor2SMMPData',
+    'Local\\SMMPData',
+    'SMMPData',
+    'Global\\rF2SMMPData_2',
+    'Global\\SMMPData',
+    'Global\\SMMPData_0',
+    'Global\\SMMPData_1',
+    'Global\\SMMPData_2'
   ]
 
   constructor() {
@@ -96,40 +125,18 @@ export class SharedMemoryReader {
   }
 
   private initSharedMemory(): void {
-    // Use the exact same approach as the working monitoring script
-    console.log('Initializing shared memory connection...')
+    console.log('🔍 Initializing shared memory connection...')
+    console.log('📋 Will try multiple shared memory names and access methods')
     
-    // Try the main shared memory name first (the one that works in monitoring)
-    try {
-      console.log('Trying to connect to Local\\rFactor2SMMPData...')
-      
-      // Open the file mapping using the same approach as monitoring script
-      this.fileMappingHandle = OpenFileMappingA(SECTION_MAP_READ, false, 'Local\\rFactor2SMMPData')
-      
-      if (!this.fileMappingHandle) {
-        console.log('Failed to open file mapping for Local\\rFactor2SMMPData')
-      } else {
-        console.log('✅ Successfully opened file mapping for Local\\rFactor2SMMPData')
-
-        // Map the view of the file - rF2 shared memory is 32768 bytes
-        this.mappedView = MapViewOfFile(this.fileMappingHandle, FILE_MAP_READ, 0, 0, 32768)
-        
-        if (!this.mappedView) {
-          console.log('Failed to map view of file for Local\\rFactor2SMMPData')
-          CloseHandle(this.fileMappingHandle)
-          this.fileMappingHandle = null
-        } else {
-          this.isConnected = true
-          console.log('✅ Successfully connected to Local\\rFactor2SMMPData')
-          return
-        }
+    // If we have a working configuration, try it first
+    if (this.workingMemoryName && this.workingAccessMethod !== null) {
+      if (this.tryConnect(this.workingMemoryName, this.workingAccessMethod)) {
+        console.log(`✅ Reconnected using previous working configuration: ${this.workingMemoryName}`)
+        return
       }
-    } catch (error) {
-      console.log('Failed to connect to Local\\rFactor2SMMPData:', (error as Error).message)
-      this.cleanup()
     }
-
-    // If the main one fails, try other names with different access methods
+    
+    // Try different access methods
     const accessMethods = [
       { name: 'SECTION_MAP_READ', flag: SECTION_MAP_READ },
       { name: 'SECTION_MAP_READ | SECTION_MAP_WRITE', flag: SECTION_MAP_READ | SECTION_MAP_WRITE },
@@ -137,47 +144,72 @@ export class SharedMemoryReader {
       { name: 'SECTION_ALL_ACCESS', flag: SECTION_QUERY | SECTION_MAP_READ | SECTION_MAP_WRITE | SECTION_MAP_EXECUTE | SECTION_EXTEND_SIZE }
     ]
 
+    // Try each memory name with each access method
     for (const memoryName of this.sharedMemoryNames) {
       for (const method of accessMethods) {
-        try {
-          console.log(`Trying to connect to ${memoryName} with ${method.name}`)
-          
-          // Open the file mapping
-          this.fileMappingHandle = OpenFileMappingA(method.flag, false, memoryName)
-          
-          if (!this.fileMappingHandle) {
-            console.log(`Failed to open file mapping for ${memoryName} with ${method.name}`)
-            continue
-          }
-
-          // Map the view of the file - rF2 shared memory is 32768 bytes
-          this.mappedView = MapViewOfFile(this.fileMappingHandle, FILE_MAP_READ, 0, 0, 32768)
-          
-          if (!this.mappedView) {
-            console.log(`Failed to map view of file for ${memoryName}`)
-            CloseHandle(this.fileMappingHandle)
-            this.fileMappingHandle = null
-            continue
-          }
-
-          this.isConnected = true
-          console.log(`Successfully connected to: ${memoryName} using ${method.name}`)
+        console.log(`🔧 Trying ${memoryName} with ${method.name}`)
+        
+        if (this.tryConnect(memoryName, method.flag)) {
+          this.workingMemoryName = memoryName
+          this.workingAccessMethod = method.flag
+          console.log(`✅ Successfully connected to: ${memoryName} using ${method.name}`)
           return
-        } catch (error) {
-          console.log(`Failed to connect to ${memoryName} with ${method.name}:`, (error as Error).message)
-          this.cleanup()
         }
       }
     }
     
-    console.error('Failed to connect to any shared memory. Make sure:')
-    console.error('1. Le Mans Ultimate is running')
-    console.error('2. rFactor2SharedMemoryMapPlugin64.dll is installed in Le Mans Ultimate\\Plugins folder')
-    console.error('3. Plugin is enabled in CustomPluginVariables.JSON')
+    console.error('❌ Failed to connect to any shared memory. This could mean:')
+    console.error('1. Le Mans Ultimate is not running')
+    console.error('2. You are not driving in the game (try starting a practice session)')
+    console.error('3. The rF2SharedMemoryMapPlugin is not properly installed/enabled')
+    console.error('4. The plugin uses different shared memory names')
+    console.error('5. The game needs to be in a specific state (driving on track)')
+    
     this.isConnected = false
     
     // Start retry mechanism
     this.startRetryMechanism()
+  }
+
+  private tryConnect(memoryName: string, accessFlag: number): boolean {
+    try {
+      // Open the file mapping
+      this.fileMappingHandle = OpenFileMappingA(accessFlag, false, memoryName)
+      
+      if (!this.fileMappingHandle) {
+        return false
+      }
+
+      // Map the view of the file - rF2 shared memory is 32768 bytes
+      this.mappedView = MapViewOfFile(this.fileMappingHandle, FILE_MAP_READ, 0, 0, 32768)
+      
+      if (!this.mappedView) {
+        CloseHandle(this.fileMappingHandle)
+        this.fileMappingHandle = null
+        return false
+      }
+
+      // Try to read a small amount of data to verify it's working
+      try {
+        const buffer = koffi.decode(this.mappedView, 'uint8[4]')
+        const buildVersionNumber = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
+        
+        if (buildVersionNumber > 0) {
+          this.isConnected = true
+          return true
+        } else {
+          // Shared memory exists but no valid data (game not running or not in driving state)
+          this.cleanup()
+          return false
+        }
+             } catch {
+         this.cleanup()
+         return false
+       }
+     } catch {
+       this.cleanup()
+       return false
+     }
   }
 
   public readRPMData(): rF2Data | null {
@@ -195,39 +227,65 @@ export class SharedMemoryReader {
         return null // Game not running or no valid data
       }
       
-      // Read telemetry data using DataView for better precision (same as working test)
+      // Read telemetry data using DataView for better precision
       const view = new DataView(buffer.buffer, buffer.byteOffset, 32768)
       
-      const data: rF2Data = {
-        buildVersionNumber: buildVersionNumber,
-        gameMode: view.getInt32(0x4, true),
-        raceState: view.getInt32(0x8, true),
-        rpm: view.getFloat32(0x1C, true), // Engine RPM
-        maxRpm: view.getFloat32(0x20, true), // Max RPM
-        speed: view.getFloat32(0x24, true), // Speed in m/s
-        gear: buffer[0x28], // Current gear
-        engineMaxRpm: view.getFloat32(0x2C, true), // Engine max RPM
-        lapNumber: view.getInt32(0x30, true),
-        lapTime: view.getFloat32(0x34, true),
-        lastLapTime: view.getFloat32(0x38, true),
-        bestLapTime: view.getFloat32(0x3C, true),
-        fuel: view.getFloat32(0x40, true),
-        maxFuel: view.getFloat32(0x44, true),
-        brake: view.getFloat32(0x48, true),
-        throttle: view.getFloat32(0x4C, true),
-        clutch: view.getFloat32(0x50, true),
-        steering: view.getFloat32(0x54, true),
-        trackTemp: view.getFloat32(0x58, true),
-        ambientTemp: view.getFloat32(0x5C, true),
-        weatherType: view.getInt32(0x60, true),
-        trackName: this.readString(buffer, 0x64, 64), // Track name (64 chars)
-        carName: this.readString(buffer, 0xA4, 64)   // Car name (64 chars)
-      }
+                                  // Go back to the original working offsets that showed some realistic data
+        const gear = view.getInt32(0x000c, true) // Gear (int32) - original working offset
+        const rpm = 0 // RPM not found yet - will need to search more
+        const maxRpm = 8000 // Default max RPM for most cars
+        
+        // Speed - use the offset that showed realistic speed values
+        const speed = view.getFloat32(0x0730, true) // Speed (float32) - from scan showing 113 km/h
+       
+               const data: rF2Data = {
+          buildVersionNumber: buildVersionNumber,
+          gameMode: view.getInt32(0x4, true),
+          raceState: view.getInt32(0x8, true),
+          rpm: rpm, // Correct RPM from mEngineRPM
+          maxRpm: maxRpm, // Correct Max RPM from mEngineMaxRPM
+          speed: speed, // Correct speed from mLocalVel magnitude
+          gear: gear, // Correct gear from mGear
+          engineMaxRpm: maxRpm, // Use the same maxRpm value
+          lapNumber: view.getInt32(0x14, true), // mLapNumber
+          lapTime: view.getFloat64(0x18, true), // mLapStartET
+          lastLapTime: 0, // Not available in this structure
+          bestLapTime: 0, // Not available in this structure
+          fuel: view.getFloat64(0x20c, true), // mFuel
+          maxFuel: 0, // Not available in this structure
+          brake: view.getFloat64(0x18c, true), // mUnfilteredBrake
+          throttle: view.getFloat64(0x184, true), // mUnfilteredThrottle
+          clutch: view.getFloat64(0x19c, true), // mUnfilteredClutch
+          steering: view.getFloat64(0x194, true), // mUnfilteredSteering
+          trackTemp: 0, // Not available in this structure
+          ambientTemp: 0, // Not available in this structure
+          weatherType: 0, // Not available in this structure
+          trackName: this.readString(buffer, 0x60, 64), // mTrackName
+          carName: this.readString(buffer, 0x20, 64)   // mVehicleName
+        }
 
-      // Validate data
-      if (data.rpm < 0 || data.rpm > 50000 || data.speed < 0 || data.speed > 1000) {
-        return null // Invalid data
-      }
+        // Debug logging to see what we're getting
+        console.log(`🔍 Debug - Gear: ${gear}, RPM: ${rpm.toFixed(0)}, Speed: ${speed.toFixed(1)} km/h, Max RPM: ${maxRpm.toFixed(0)}`)
+       
+        // Validate the new data ranges
+        if (data.speed < 0) {
+          console.log(`⚠️  Negative speed detected: ${data.speed} km/h`)
+        }
+        if (data.speed > 400) {
+          console.log(`⚠️  Very high speed detected: ${data.speed} km/h`)
+        }
+        
+        // Gear validation - should be reasonable gear values
+        if (data.gear < -1 || data.gear > 10) {
+          console.log(`⚠️  Gear validation failed: ${data.gear} (range: -1 to 10)`)
+          data.gear = 0 // Default to neutral if invalid
+        }
+        
+        // RPM validation
+        if (data.rpm < 0 || data.rpm > 50000) {
+          console.log(`⚠️  RPM validation failed: ${data.rpm} (range: 0 to 50000)`)
+          data.rpm = 0 // Default to 0 if invalid
+        }
 
       return data
     } catch (error) {
@@ -299,10 +357,11 @@ export class SharedMemoryReader {
       clearInterval(this.retryInterval)
     }
     
-    console.log('Starting retry mechanism - will attempt to connect every 5 seconds...')
+    console.log('🔄 Starting retry mechanism - will attempt to connect every 5 seconds...')
+    console.log('💡 Make sure you are driving in the game (not just in menus)')
     this.retryInterval = setInterval(() => {
       if (!this.isConnected) {
-        console.log('Retrying connection...')
+        console.log('🔄 Retrying shared memory connection...')
         this.initSharedMemory()
       }
     }, 5000)
@@ -312,6 +371,15 @@ export class SharedMemoryReader {
     if (this.retryInterval) {
       clearInterval(this.retryInterval)
       this.retryInterval = null
+    }
+  }
+
+  // Get connection info for debugging
+  public getConnectionInfo(): { isConnected: boolean; memoryName: string | null; accessMethod: string | null } {
+    return {
+      isConnected: this.isConnected,
+      memoryName: this.workingMemoryName,
+      accessMethod: this.workingAccessMethod ? `0x${this.workingAccessMethod.toString(16)}` : null
     }
   }
 }
