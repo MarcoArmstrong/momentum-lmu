@@ -173,9 +173,9 @@ export class SharedMemoryReader {
       const VEHICLE_OFFSET = 0x10
       
       // Telemetry data offsets for Le Mans Ultimate
-      const gear = view.getInt32(0x0170, true) // Gear - FOUND CORRECT OFFSET!
-      const rpm = view.getInt32(0x0008, true) // RPM
-      const maxRpm = 8000 // Default max RPM for most cars
+      const gear = view.getInt32(VEHICLE_OFFSET + 0x160, true) // mGear - FOUND CORRECT OFFSET!
+      const rpm = view.getFloat64(VEHICLE_OFFSET + 0x164, true) // mEngineRPM - should be double
+      const maxRpm = view.getFloat64(VEHICLE_OFFSET + 0x1F8, true) // mEngineMaxRPM - should be double
 
                       // Speed - using LocalVel vector magnitude (correct calculation based on official rF2 structure)
         let speed = 0
@@ -225,8 +225,11 @@ export class SharedMemoryReader {
       if (data.gear < -1 || data.gear > 10) {
         data.gear = 0 // Default to neutral if invalid
       }
-      if (data.rpm < 0 || data.rpm > 50000) {
+      if (isNaN(data.rpm) || !isFinite(data.rpm) || data.rpm < 0 || data.rpm > 50000) {
         data.rpm = 0 // Default to 0 if invalid
+      }
+      if (isNaN(data.maxRpm) || !isFinite(data.maxRpm) || data.maxRpm < 1000 || data.maxRpm > 20000) {
+        data.maxRpm = 8000 // Default max RPM if invalid
       }
 
       return data
