@@ -24,18 +24,11 @@ function initTelemetry(): void {
   }, 50) // Update every 50ms for more responsive UI
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function updateTelemetryDisplay(data: any): void {
-  // Debug logging to see what data we're receiving
-  console.log('📊 UI Update:', {
-    rpm: Math.round(data.rpm),
-    maxRpm: Math.round(data.maxRpm),
-    speed: Math.round(data.speed * 3.6),
-    gear: data.gear
-  })
-  
   replaceText('#rpm', Math.round(data.rpm).toString())
   replaceText('#maxRpm', Math.round(data.maxRpm).toString())
-  replaceText('#speed', Math.round(data.speed * 3.6).toString()) // Convert m/s to km/h
+  replaceText('#speed', Math.round(data.speed).toString()) // Speed is already in km/h from shared memory
   replaceText('#gear', data.gear.toString())
 }
 
@@ -57,7 +50,7 @@ async function updateConnectionStatus(isConnected: boolean): Promise<void> {
     try {
       const method = await window.api.getConnectionMethod()
       methodElement.textContent = method
-    } catch (error) {
+    } catch {
       methodElement.textContent = 'Error'
     }
   }
@@ -68,7 +61,7 @@ async function updateConnectionStatus(isConnected: boolean): Promise<void> {
     try {
       const debugInfo = await window.api.getDebugInfo()
       debugElement.textContent = JSON.stringify(debugInfo, null, 2)
-    } catch (error) {
+    } catch {
       debugElement.textContent = 'Error loading debug info'
     }
   }

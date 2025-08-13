@@ -5,7 +5,13 @@ const kernel32 = koffi.load('kernel32.dll')
 
 // Function signatures
 const OpenFileMappingA = kernel32.func('OpenFileMappingA', 'void*', ['uint32', 'bool', 'str'])
-const MapViewOfFile = kernel32.func('MapViewOfFile', 'void*', ['void*', 'uint32', 'uint32', 'uint32', 'size_t'])
+const MapViewOfFile = kernel32.func('MapViewOfFile', 'void*', [
+  'void*',
+  'uint32',
+  'uint32',
+  'uint32',
+  'size_t'
+])
 const UnmapViewOfFile = kernel32.func('UnmapViewOfFile', 'bool', ['void*'])
 const CloseHandle = kernel32.func('CloseHandle', 'bool', ['void*'])
 // GetLastError function available for debugging if needed
@@ -56,12 +62,12 @@ export class SharedMemoryReader {
   private retryInterval: NodeJS.Timeout | null = null
   private workingMemoryName: string | null = null
   private workingAccessMethod: number | null = null
-  
+
   // Correct shared memory names based on Reddit discovery
   private sharedMemoryNames = [
     // Main telemetry object (most important)
     '$rFactor2SMMP_Telemetry$',
-    
+
     // Other shared memory objects
     '$rFactor2SMMP_Scoring$',
     '$rFactor2SMMP_Weather$',
@@ -82,7 +88,7 @@ export class SharedMemoryReader {
     '$rFactor2SMMP_Leaderboard$',
     '$rFactor2SMMP_Statistics$',
     '$rFactor2SMMP_Data$',
-    
+
     // Variations without $ prefix/suffix (just in case)
     'rFactor2SMMP_Telemetry',
     'rFactor2SMMP_Scoring',
@@ -104,7 +110,7 @@ export class SharedMemoryReader {
     'rFactor2SMMP_Leaderboard',
     'rFactor2SMMP_Statistics',
     'rFactor2SMMP_Data',
-    
+
     // Legacy names (fallback)
     'Local\\rFactor2SMMPData',
     'rFactor2SMMPData',
@@ -127,28 +133,41 @@ export class SharedMemoryReader {
   private initSharedMemory(): void {
     console.log('🔍 Initializing shared memory connection...')
     console.log('📋 Will try multiple shared memory names and access methods')
-    
+
     // If we have a working configuration, try it first
     if (this.workingMemoryName && this.workingAccessMethod !== null) {
       if (this.tryConnect(this.workingMemoryName, this.workingAccessMethod)) {
-        console.log(`✅ Reconnected using previous working configuration: ${this.workingMemoryName}`)
+        console.log(
+          `✅ Reconnected using previous working configuration: ${this.workingMemoryName}`
+        )
         return
       }
     }
-    
+
     // Try different access methods
     const accessMethods = [
       { name: 'SECTION_MAP_READ', flag: SECTION_MAP_READ },
       { name: 'SECTION_MAP_READ | SECTION_MAP_WRITE', flag: SECTION_MAP_READ | SECTION_MAP_WRITE },
-      { name: 'STANDARD_RIGHTS_READ | SECTION_MAP_READ', flag: STANDARD_RIGHTS_READ | SECTION_MAP_READ },
-      { name: 'SECTION_ALL_ACCESS', flag: SECTION_QUERY | SECTION_MAP_READ | SECTION_MAP_WRITE | SECTION_MAP_EXECUTE | SECTION_EXTEND_SIZE }
+      {
+        name: 'STANDARD_RIGHTS_READ | SECTION_MAP_READ',
+        flag: STANDARD_RIGHTS_READ | SECTION_MAP_READ
+      },
+      {
+        name: 'SECTION_ALL_ACCESS',
+        flag:
+          SECTION_QUERY |
+          SECTION_MAP_READ |
+          SECTION_MAP_WRITE |
+          SECTION_MAP_EXECUTE |
+          SECTION_EXTEND_SIZE
+      }
     ]
 
     // Try each memory name with each access method
     for (const memoryName of this.sharedMemoryNames) {
       for (const method of accessMethods) {
         console.log(`🔧 Trying ${memoryName} with ${method.name}`)
-        
+
         if (this.tryConnect(memoryName, method.flag)) {
           this.workingMemoryName = memoryName
           this.workingAccessMethod = method.flag
@@ -157,16 +176,16 @@ export class SharedMemoryReader {
         }
       }
     }
-    
+
     console.error('❌ Failed to connect to any shared memory. This could mean:')
     console.error('1. Le Mans Ultimate is not running')
     console.error('2. You are not driving in the game (try starting a practice session)')
     console.error('3. The rF2SharedMemoryMapPlugin is not properly installed/enabled')
     console.error('4. The plugin uses different shared memory names')
     console.error('5. The game needs to be in a specific state (driving on track)')
-    
+
     this.isConnected = false
-    
+
     // Start retry mechanism
     this.startRetryMechanism()
   }
@@ -175,14 +194,14 @@ export class SharedMemoryReader {
     try {
       // Open the file mapping
       this.fileMappingHandle = OpenFileMappingA(accessFlag, false, memoryName)
-      
+
       if (!this.fileMappingHandle) {
         return false
       }
 
       // Map the view of the file - rF2 shared memory is 32768 bytes
       this.mappedView = MapViewOfFile(this.fileMappingHandle, FILE_MAP_READ, 0, 0, 32768)
-      
+
       if (!this.mappedView) {
         CloseHandle(this.fileMappingHandle)
         this.fileMappingHandle = null
@@ -192,8 +211,9 @@ export class SharedMemoryReader {
       // Try to read a small amount of data to verify it's working
       try {
         const buffer = koffi.decode(this.mappedView, 'uint8[4]')
-        const buildVersionNumber = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
-        
+        const buildVersionNumber =
+          buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
+
         if (buildVersionNumber > 0) {
           this.isConnected = true
           return true
@@ -202,14 +222,14 @@ export class SharedMemoryReader {
           this.cleanup()
           return false
         }
-             } catch {
-         this.cleanup()
-         return false
-       }
-     } catch {
-       this.cleanup()
-       return false
-     }
+      } catch {
+        this.cleanup()
+        return false
+      }
+    } catch {
+      this.cleanup()
+      return false
+    }
   }
 
   public readRPMData(): rF2Data | null {
@@ -220,72 +240,59 @@ export class SharedMemoryReader {
     try {
       // Read the entire shared memory buffer as bytes first
       const buffer = koffi.decode(this.mappedView, 'uint8[32768]')
-      
+
       // Check if we have valid data (game is running)
-      const buildVersionNumber = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
+      const buildVersionNumber =
+        buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
       if (buildVersionNumber === 0) {
         return null // Game not running or no valid data
       }
-      
+
       // Read telemetry data using DataView for better precision
       const view = new DataView(buffer.buffer, buffer.byteOffset, 32768)
-      
-                                  // Go back to the original working offsets that showed some realistic data
-        const gear = view.getInt32(0x000c, true) // Gear (int32) - original working offset
-        const rpm = 0 // RPM not found yet - will need to search more
-        const maxRpm = 8000 // Default max RPM for most cars
-        
-        // Speed - use the offset that showed realistic speed values
-        const speed = view.getFloat32(0x0730, true) // Speed (float32) - from scan showing 113 km/h
-       
-               const data: rF2Data = {
-          buildVersionNumber: buildVersionNumber,
-          gameMode: view.getInt32(0x4, true),
-          raceState: view.getInt32(0x8, true),
-          rpm: rpm, // Correct RPM from mEngineRPM
-          maxRpm: maxRpm, // Correct Max RPM from mEngineMaxRPM
-          speed: speed, // Correct speed from mLocalVel magnitude
-          gear: gear, // Correct gear from mGear
-          engineMaxRpm: maxRpm, // Use the same maxRpm value
-          lapNumber: view.getInt32(0x14, true), // mLapNumber
-          lapTime: view.getFloat64(0x18, true), // mLapStartET
-          lastLapTime: 0, // Not available in this structure
-          bestLapTime: 0, // Not available in this structure
-          fuel: view.getFloat64(0x20c, true), // mFuel
-          maxFuel: 0, // Not available in this structure
-          brake: view.getFloat64(0x18c, true), // mUnfilteredBrake
-          throttle: view.getFloat64(0x184, true), // mUnfilteredThrottle
-          clutch: view.getFloat64(0x19c, true), // mUnfilteredClutch
-          steering: view.getFloat64(0x194, true), // mUnfilteredSteering
-          trackTemp: 0, // Not available in this structure
-          ambientTemp: 0, // Not available in this structure
-          weatherType: 0, // Not available in this structure
-          trackName: this.readString(buffer, 0x60, 64), // mTrackName
-          carName: this.readString(buffer, 0x20, 64)   // mVehicleName
-        }
 
-        // Debug logging to see what we're getting
-        console.log(`🔍 Debug - Gear: ${gear}, RPM: ${rpm.toFixed(0)}, Speed: ${speed.toFixed(1)} km/h, Max RPM: ${maxRpm.toFixed(0)}`)
-       
-        // Validate the new data ranges
-        if (data.speed < 0) {
-          console.log(`⚠️  Negative speed detected: ${data.speed} km/h`)
-        }
-        if (data.speed > 400) {
-          console.log(`⚠️  Very high speed detected: ${data.speed} km/h`)
-        }
-        
-        // Gear validation - should be reasonable gear values
-        if (data.gear < -1 || data.gear > 10) {
-          console.log(`⚠️  Gear validation failed: ${data.gear} (range: -1 to 10)`)
-          data.gear = 0 // Default to neutral if invalid
-        }
-        
-        // RPM validation
-        if (data.rpm < 0 || data.rpm > 50000) {
-          console.log(`⚠️  RPM validation failed: ${data.rpm} (range: 0 to 50000)`)
-          data.rpm = 0 // Default to 0 if invalid
-        }
+      // Telemetry data offsets for Le Mans Ultimate
+      const gear = view.getInt32(0x000c, true) // Gear
+      const rpm = view.getInt32(0x0008, true) // RPM
+      const maxRpm = 8000 // Default max RPM for most cars
+
+      // Speed - convert from raw value to km/h
+      const speedRaw = view.getFloat32(0x0730, true)
+      const speed = speedRaw / 3.58 // Conversion factor for accurate speed display
+
+      const data: rF2Data = {
+        buildVersionNumber: buildVersionNumber,
+        gameMode: view.getInt32(0x4, true),
+        raceState: view.getInt32(0x8, true),
+        rpm: rpm, // Correct RPM from mEngineRPM
+        maxRpm: maxRpm, // Correct Max RPM from mEngineMaxRPM
+        speed: speed, // Correct speed from mLocalVel magnitude
+        gear: gear, // Correct gear from mGear
+        engineMaxRpm: maxRpm, // Use the same maxRpm value
+        lapNumber: view.getInt32(0x14, true), // mLapNumber
+        lapTime: view.getFloat64(0x18, true), // mLapStartET
+        lastLapTime: 0, // Not available in this structure
+        bestLapTime: 0, // Not available in this structure
+        fuel: view.getFloat64(0x20c, true), // mFuel
+        maxFuel: 0, // Not available in this structure
+        brake: view.getFloat64(0x18c, true), // mUnfilteredBrake
+        throttle: view.getFloat64(0x184, true), // mUnfilteredThrottle
+        clutch: view.getFloat64(0x19c, true), // mUnfilteredClutch
+        steering: view.getFloat64(0x194, true), // mUnfilteredSteering
+        trackTemp: 0, // Not available in this structure
+        ambientTemp: 0, // Not available in this structure
+        weatherType: 0, // Not available in this structure
+        trackName: this.readString(buffer, 0x60, 64), // mTrackName
+        carName: this.readString(buffer, 0x20, 64) // mVehicleName
+      }
+
+      // Basic data validation
+      if (data.gear < -1 || data.gear > 10) {
+        data.gear = 0 // Default to neutral if invalid
+      }
+      if (data.rpm < 0 || data.rpm > 50000) {
+        data.rpm = 0 // Default to 0 if invalid
+      }
 
       return data
     } catch (error) {
@@ -298,14 +305,14 @@ export class SharedMemoryReader {
     if (!this.isConnected || !this.mappedView) {
       return false
     }
-    
+
     try {
       // Try to read a small amount of data to verify connection is still alive
       const buffer = koffi.decode(this.mappedView, 'uint8[4]')
-      const buildVersionNumber = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
+      const buildVersionNumber =
+        buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24)
       return buildVersionNumber > 0
-    } catch (error) {
-      console.log('Game connection lost, attempting to reconnect...', (error as Error).message)
+    } catch {
       this.isConnected = false
       this.cleanup()
       this.initSharedMemory()
@@ -313,24 +320,24 @@ export class SharedMemoryReader {
     }
   }
 
-  // Helper methods to read different data types from buffer
-  private readInt32LE(buffer: Uint8Array, offset: number): number {
-    return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24)
-  }
+  // Helper methods to read different data types from buffer (unused but kept for reference)
+  // private readInt32LE(buffer: Uint8Array, offset: number): number {
+  //   return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24)
+  // }
 
-  private readFloatLE(buffer: Uint8Array, offset: number): number {
-    const view = new DataView(buffer.buffer, buffer.byteOffset + offset, 4)
-    return view.getFloat32(0, true) // true = little endian
-  }
+  // private readFloatLE(buffer: Uint8Array, offset: number): number {
+  //   const view = new DataView(buffer.buffer, buffer.byteOffset + offset, 4)
+  //   return view.getFloat32(0, true) // true = little endian
+  // }
 
-  private readInt8(buffer: Uint8Array, offset: number): number {
-    return buffer[offset]
-  }
+  // private readInt8(buffer: Uint8Array, offset: number): number {
+  //   return buffer[offset]
+  // }
 
   private readString(buffer: Uint8Array, offset: number, length: number): string {
     const bytes = buffer.slice(offset, offset + length)
     // Find null terminator
-    const nullIndex = bytes.findIndex(byte => byte === 0)
+    const nullIndex = bytes.findIndex((byte) => byte === 0)
     const endIndex = nullIndex !== -1 ? nullIndex : length
     return new TextDecoder('utf-8').decode(bytes.slice(0, endIndex)).trim()
   }
@@ -356,12 +363,9 @@ export class SharedMemoryReader {
     if (this.retryInterval) {
       clearInterval(this.retryInterval)
     }
-    
-    console.log('🔄 Starting retry mechanism - will attempt to connect every 5 seconds...')
-    console.log('💡 Make sure you are driving in the game (not just in menus)')
+
     this.retryInterval = setInterval(() => {
       if (!this.isConnected) {
-        console.log('🔄 Retrying shared memory connection...')
         this.initSharedMemory()
       }
     }, 5000)
@@ -375,7 +379,11 @@ export class SharedMemoryReader {
   }
 
   // Get connection info for debugging
-  public getConnectionInfo(): { isConnected: boolean; memoryName: string | null; accessMethod: string | null } {
+  public getConnectionInfo(): {
+    isConnected: boolean
+    memoryName: string | null
+    accessMethod: string | null
+  } {
     return {
       isConnected: this.isConnected,
       memoryName: this.workingMemoryName,

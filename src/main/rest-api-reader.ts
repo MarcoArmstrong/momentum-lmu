@@ -31,7 +31,7 @@ export class RestApiReader {
   private isConnected = false
   private baseUrl = 'http://localhost:6397'
   private retryInterval: NodeJS.Timeout | null = null
-  private lastSuccessfulEndpoint: string | null = null
+  // private lastSuccessfulEndpoint: string | null = null
   
   // Working API endpoints discovered from Le Mans Ultimate
   private endpoints = {
@@ -124,7 +124,7 @@ export class RestApiReader {
 
     try {
       // Fetch data from multiple endpoints concurrently
-      const [standingsData, gameStateData, sessionInfoData, pitStopData] = await Promise.all([
+      const [standingsData, gameStateData, sessionInfoData, _pitStopData] = await Promise.all([
         this.fetchData(this.endpoints.standings),
         this.fetchData(this.endpoints.gameState),
         this.fetchData(this.endpoints.sessionInfo),

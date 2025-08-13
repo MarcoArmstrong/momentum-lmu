@@ -53,7 +53,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
     
     // Add keyboard shortcut to toggle always-on-top (Ctrl+Shift+T)
-    window.webContents.on('before-input-event', (event, input) => {
+    window.webContents.on('before-input-event', (_event, input) => {
       if (input.control && input.shift && input.key.toLowerCase() === 't') {
         const isOnTop = window.isAlwaysOnTop()
         window.setAlwaysOnTop(!isOnTop)
