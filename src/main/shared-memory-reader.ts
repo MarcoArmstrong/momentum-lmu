@@ -251,13 +251,31 @@ export class SharedMemoryReader {
       // Read telemetry data using DataView for better precision
       const view = new DataView(buffer.buffer, buffer.byteOffset, 32768)
 
+      // Vehicle 0 starts at offset 0x10, so add this to all vehicle-specific offsets
+      const VEHICLE_OFFSET = 0x10
+      
       // Telemetry data offsets for Le Mans Ultimate
       const gear = view.getInt32(0x0170, true) // Gear - FOUND CORRECT OFFSET!
       const rpm = view.getInt32(0x0008, true) // RPM
       const maxRpm = 8000 // Default max RPM for most cars
 
-      // Speed - temporarily set to 0 until we find the correct offset
-      const speed = 0 // TODO: Find correct speed offset
+                      // Speed - using LocalVel vector magnitude (correct calculation based on official rF2 structure)
+        let speed = 0
+        
+        // Read LocalVel vector components (X, Y, Z) from correct offsets using double (float64)
+        // Based on official rF2 structure: mLocalVel at 0xB8, each component is 8 bytes (double)
+        const localVelX = view.getFloat64(VEHICLE_OFFSET + 0xB8, true) // LocalVel X (double)
+        const localVelY = view.getFloat64(VEHICLE_OFFSET + 0xC0, true) // LocalVel Y (double)  
+        const localVelZ = view.getFloat64(VEHICLE_OFFSET + 0xC8, true) // LocalVel Z (double)
+        
+        // Calculate speed as magnitude of velocity vector: sqrt(x² + y² + z²)
+        const speedMagnitude = Math.sqrt(localVelX * localVelX + localVelY * localVelY + localVelZ * localVelZ)
+        speed = speedMagnitude * 3.6 // Convert m/s to km/h
+        
+        // Basic validation - filter out invalid values
+        if (isNaN(speed) || !isFinite(speed) || speed < 0 || speed > 500) {
+          speed = 0
+        }
 
       const data: rF2Data = {
         buildVersionNumber: buildVersionNumber,
