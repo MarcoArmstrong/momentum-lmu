@@ -10,6 +10,8 @@ declare global {
         speed: number
         gear: number
         engineMaxRpm: number
+        throttle: number
+        brake: number
       } | null>
       isGameRunning: () => Promise<boolean>
       getConnectionStatus: () => Promise<string>

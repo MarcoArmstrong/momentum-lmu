@@ -60,7 +60,11 @@ export class SharedMemoryReader {
 
   // rFactor 2 shared memory name - this is the main telemetry object that contains all vehicle data
   private sharedMemoryNames = [
-    '$rFactor2SMMP_Telemetry$'
+    '$rFactor2SMMP_Telemetry$',
+    'Local\\rFactor2SMMPData',
+    'Local\\rFactor2SMMPTelemetry',
+    'Local\\LeMansUltimateTelemetry',
+    'Local\\LeMansUltimateData'
   ]
 
   constructor() {
@@ -83,20 +87,21 @@ export class SharedMemoryReader {
       }
     }
 
-    // Try to connect to the telemetry shared memory
-    const memoryName = this.sharedMemoryNames[0]
-    const accessFlag = SECTION_MAP_READ
+    // Try to connect to all possible shared memory names
+    for (const memoryName of this.sharedMemoryNames) {
+      const accessFlag = SECTION_MAP_READ
 
-    console.log(`🔧 Trying to connect to: ${memoryName}`)
+      console.log(`🔧 Trying to connect to: ${memoryName}`)
 
-    if (this.tryConnect(memoryName, accessFlag)) {
-      this.workingMemoryName = memoryName
-      this.workingAccessMethod = accessFlag
-      console.log(`✅ Successfully connected to: ${memoryName}`)
-      return
+      if (this.tryConnect(memoryName, accessFlag)) {
+        this.workingMemoryName = memoryName
+        this.workingAccessMethod = accessFlag
+        console.log(`✅ Successfully connected to: ${memoryName}`)
+        return
+      }
     }
 
-    console.error('❌ Failed to connect to shared memory. This could mean:')
+    console.error('❌ Failed to connect to any shared memory. This could mean:')
     console.error('1. Le Mans Ultimate is not running')
     console.error('2. You are not driving in the game (try starting a practice session)')
     console.error('3. The rF2SharedMemoryMapPlugin is not properly installed/enabled')
@@ -210,8 +215,8 @@ export class SharedMemoryReader {
         bestLapTime: 0, // Not available in this structure
         fuel: view.getFloat64(0x20c, true), // mFuel
         maxFuel: 0, // Not available in this structure
-        brake: view.getFloat64(0x18c, true), // mUnfilteredBrake
-        throttle: view.getFloat64(0x184, true), // mUnfilteredThrottle
+        brake: view.getFloat64(VEHICLE_OFFSET + 0x18c, true), // mUnfilteredBrake - correct rF2 offset
+        throttle: view.getFloat64(VEHICLE_OFFSET + 0x184, true), // mUnfilteredThrottle - correct rF2 offset
         clutch: view.getFloat64(0x19c, true), // mUnfilteredClutch
         steering: view.getFloat64(0x194, true), // mUnfilteredSteering
         trackTemp: 0, // Not available in this structure
@@ -219,6 +224,35 @@ export class SharedMemoryReader {
         weatherType: 0, // Not available in this structure
         trackName: this.readString(buffer, 0x60, 64), // mTrackName
         carName: this.readString(buffer, 0x20, 64) // mVehicleName
+      }
+
+      // Validate and fix throttle/brake values
+      if (isNaN(data.throttle) || !isFinite(data.throttle) || data.throttle < 0 || data.throttle > 1) {
+        // Try float32 as fallback
+        try {
+          const throttleFloat32 = view.getFloat32(VEHICLE_OFFSET + 0x184, true)
+          if (throttleFloat32 >= 0 && throttleFloat32 <= 1) {
+            data.throttle = throttleFloat32
+          } else {
+            data.throttle = 0
+          }
+        } catch {
+          data.throttle = 0
+        }
+      }
+      
+      if (isNaN(data.brake) || !isFinite(data.brake) || data.brake < 0 || data.brake > 1) {
+        // Try float32 as fallback
+        try {
+          const brakeFloat32 = view.getFloat32(VEHICLE_OFFSET + 0x18c, true)
+          if (brakeFloat32 >= 0 && brakeFloat32 <= 1) {
+            data.brake = brakeFloat32
+          } else {
+            data.brake = 0
+          }
+        } catch {
+          data.brake = 0
+        }
       }
 
       // Basic data validation

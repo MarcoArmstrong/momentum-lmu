@@ -30,6 +30,13 @@ function updateTelemetryDisplay(data: any): void {
   replaceText('#maxRpm', Math.round(data.maxRpm).toString())
   replaceText('#speed', data.speed.toFixed(0)) // Speed is already in km/h from shared memory
   replaceText('#gear', `Raw: ${data.gear} (${typeof data.gear})`)
+  
+  // Display throttle and brake as percentages (0-100%)
+  const throttlePercent = Math.round((data.throttle || 0) * 100)
+  const brakePercent = Math.round((data.brake || 0) * 100)
+  
+  replaceText('#throttle', `${throttlePercent}%`)
+  replaceText('#brake', `${brakePercent}%`)
 }
 
 async function updateConnectionStatus(isConnected: boolean): Promise<void> {

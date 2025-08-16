@@ -90,7 +90,9 @@ export class TelemetryReader {
           console.log('🔍 Telemetry reader - Raw shared memory data:', { 
             rpm: sharedMemoryData.rpm, 
             speed: sharedMemoryData.speed, 
-            gear: sharedMemoryData.gear 
+            gear: sharedMemoryData.gear,
+            throttle: sharedMemoryData.throttle,
+            brake: sharedMemoryData.brake
           })
           this.connectionStatus = 'Connected via Shared Memory'
           return sharedMemoryData
