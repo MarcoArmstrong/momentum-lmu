@@ -1,8 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { TelemetryReader } from './telemetry-reader'
+import { loadWindowState, saveWindowState } from './utils/window-state'
 
 let telemetryReader: TelemetryReader
 let mainWindow: BrowserWindow
@@ -27,6 +28,15 @@ function createMainWindow(): void {
     mainWindow.show()
   })
 
+  // Close all windows and quit app when main window is closed
+  mainWindow.on('closed', () => {
+    console.log('🔴 Main window closed, quitting application...')
+    if (telemetryWindow && !telemetryWindow.isDestroyed()) {
+      telemetryWindow.close()
+    }
+    app.quit()
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -44,8 +54,12 @@ function createMainWindow(): void {
 function createTelemetryWindow(): void {
   console.log('🔧 Creating telemetry window...')
   
+  const defaults = { x: 100, y: 100, width: 300, height: 500 }
+  const savedBounds = { ...defaults, ...loadWindowState(defaults) }
+  
   // Create the telemetry overlay window.
   telemetryWindow = new BrowserWindow({
+    ...savedBounds,
     width: 300,
     height: 500,
     show: false,
@@ -55,6 +69,7 @@ function createTelemetryWindow(): void {
     transparent: true, // Make background transparent
     resizable: false,
     skipTaskbar: true, // Don't show in taskbar
+    focusable: false, // Prevent focus to avoid interfering with game
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -67,12 +82,46 @@ function createTelemetryWindow(): void {
     telemetryWindow.show()
   })
 
+  // Set initial mouse event handling (locked by default)
+  telemetryWindow.setIgnoreMouseEvents(true, { forward: true })
+
+  // Close all windows and quit app when telemetry window is closed
+  telemetryWindow.on('closed', () => {
+    console.log('🔴 Telemetry window closed, quitting application...')
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.close()
+    }
+    app.quit()
+  })
+
   telemetryWindow.webContents.on('did-finish-load', () => {
     console.log('✅ Telemetry window finished loading')
   })
 
-  telemetryWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  telemetryWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('❌ Telemetry window failed to load:', errorCode, errorDescription)
+  })
+
+  // Save position when window is moved (only when unlocked)
+  let isLocked = true
+  telemetryWindow.on('move', () => {
+    if (isLocked) return
+    const bounds = telemetryWindow.getBounds()
+    saveWindowState({ x: bounds.x, y: bounds.y })
+  })
+
+  // 🔒 F7 toggle lock
+  globalShortcut.register('F7', () => {
+    isLocked = !isLocked
+    telemetryWindow.setIgnoreMouseEvents(isLocked, { forward: true })
+    telemetryWindow.webContents.send('telemetry-lock-changed', isLocked)
+    console.log(`🔒 Telemetry window ${isLocked ? 'locked' : 'unlocked'}`)
+
+    // 💾 Save position if just locked
+    if (isLocked) {
+      const bounds = telemetryWindow.getBounds()
+      saveWindowState({ x: bounds.x, y: bounds.y })
+    }
   })
 
   // Load the telemetry HTML file
@@ -125,14 +174,16 @@ app.whenReady().then(() => {
         }
       }
       
-      // Move telemetry window to top-right corner (Ctrl+Shift+R)
-      if (input.control && input.shift && input.key.toLowerCase() === 'r') {
-        if (telemetryWindow) {
-          const { width } = screen.getPrimaryDisplay().workAreaSize
-          telemetryWindow.setPosition(width - 320, 20)
-          console.log('Telemetry window moved to top-right')
-        }
-      }
+             // Move telemetry window to top-right corner (Ctrl+Shift+R)
+       if (input.control && input.shift && input.key.toLowerCase() === 'r') {
+         if (telemetryWindow) {
+           const { width } = screen.getPrimaryDisplay().workAreaSize
+           telemetryWindow.setPosition(width - 320, 20)
+           console.log('Telemetry window moved to top-right')
+         }
+       }
+       
+       
     })
   })
 
@@ -167,6 +218,8 @@ app.whenReady().then(() => {
     console.log('🧪 Test telemetry window IPC called')
     return { success: true, message: 'Telemetry window IPC is working' }
   })
+  
+
 
   createMainWindow()
   createTelemetryWindow()
@@ -181,14 +234,7 @@ app.whenReady().then(() => {
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+// Note: Window closing is now handled manually in the individual window 'closed' events
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.

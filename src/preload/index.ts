@@ -8,7 +8,10 @@ const api = {
   getConnectionStatus: () => ipcRenderer.invoke('get-connection-status'),
   getConnectionMethod: () => ipcRenderer.invoke('get-connection-method'),
   getDebugInfo: () => ipcRenderer.invoke('get-debug-info'),
-  testTelemetryWindow: () => ipcRenderer.invoke('test-telemetry-window')
+  testTelemetryWindow: () => ipcRenderer.invoke('test-telemetry-window'),
+  onTelemetryLockChanged: (callback: (isLocked: boolean) => void) => {
+    ipcRenderer.on('telemetry-lock-changed', (_event, isLocked) => callback(isLocked))
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

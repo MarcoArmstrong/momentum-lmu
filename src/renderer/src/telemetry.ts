@@ -3,6 +3,7 @@ function initTelemetryWindow(): void {
   window.addEventListener('DOMContentLoaded', () => {
     console.log('📱 Telemetry window DOM loaded!')
     initTelemetryData()
+    initLockFunctionality()
   })
 }
 
@@ -71,6 +72,57 @@ function replaceTelemetryText(selector: string, text: string): void {
   const element = document.querySelector<HTMLElement>(selector)
   if (element) {
     element.innerText = text
+  }
+}
+
+// Lock functionality
+let isLocked = true
+
+function initLockFunctionality(): void {
+  // Listen for lock change messages from main process
+  window.api.onTelemetryLockChanged((locked) => {
+    isLocked = locked
+    updateLockUI()
+    console.log(`🔒 Telemetry window ${isLocked ? 'locked' : 'unlocked'}`)
+  })
+}
+
+function updateLockUI(): void {
+  const telemetryContainer = document.querySelector<HTMLElement>('#app')
+  const lockIndicator = document.querySelector<HTMLElement>('#lockIndicator')
+  const dragZone = document.querySelector<HTMLElement>('#dragZone')
+  
+  if (telemetryContainer) {
+    if (isLocked) {
+      telemetryContainer.style.cursor = 'default'
+      telemetryContainer.style.userSelect = 'auto'
+      telemetryContainer.style.border = 'none'
+    } else {
+      telemetryContainer.style.cursor = 'move'
+      telemetryContainer.style.userSelect = 'none'
+      // Add a subtle visual indicator
+      telemetryContainer.style.border = '2px solid #3b82f6'
+    }
+  }
+  
+  if (lockIndicator) {
+    if (isLocked) {
+      lockIndicator.textContent = 'Press F7 to unlock and move window'
+      lockIndicator.className = 'text-xs text-gray-500'
+    } else {
+      lockIndicator.textContent = 'Press F7 to lock window (currently movable)'
+      lockIndicator.className = 'text-xs text-blue-400 font-semibold'
+    }
+  }
+  
+  if (dragZone) {
+    if (isLocked) {
+      dragZone.classList.add('hidden')
+      dragZone.classList.remove('-webkit-app-region-drag')
+    } else {
+      dragZone.classList.remove('hidden')
+      dragZone.classList.add('-webkit-app-region-drag')
+    }
   }
 }
 

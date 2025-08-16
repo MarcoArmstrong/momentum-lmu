@@ -18,6 +18,7 @@ declare global {
       getConnectionMethod: () => Promise<string>
       getDebugInfo: () => Promise<object>
       testTelemetryWindow: () => Promise<{ success: boolean; message: string }>
+      onTelemetryLockChanged: (callback: (isLocked: boolean) => void) => void
     }
   }
 }
