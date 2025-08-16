@@ -3,29 +3,16 @@ import { RestApiReader } from './rest-api-reader'
 
 // rF2 Data structure
 interface rF2Data {
+  buildVersionNumber: number
+  gameMode: number
+  raceState: number
   rpm: number
   maxRpm: number
   speed: number
   gear: number
   engineMaxRpm: number
-  buildVersionNumber: number
-  gameMode: number
-  raceState: number
-  lapNumber: number
-  lapTime: number
-  lastLapTime: number
-  bestLapTime: number
-  fuel: number
-  maxFuel: number
-  brake: number
   throttle: number
-  clutch: number
-  steering: number
-  trackTemp: number
-  ambientTemp: number
-  weatherType: number
-  trackName: string
-  carName: string
+  brake: number
 }
 
 export class TelemetryReader {
@@ -55,18 +42,15 @@ export class TelemetryReader {
     if (this.sharedMemoryReader.isGameRunning()) {
       // Verify shared memory is actually working by trying to read data
       const testData = this.sharedMemoryReader.readRPMData()
-      console.log('🔍 Detection - Shared memory test data:', testData)
       if (testData) {
         this.currentMethod = 'sharedmemory'
         this.connectionStatus = 'Connected via Shared Memory'
-        console.log('✅ Detection - Using shared memory only')
         return
       }
     }
     
     this.currentMethod = 'none'
     this.connectionStatus = 'Disconnected - Start Le Mans Ultimate'
-    console.log('❌ Detection - Shared memory not available')
     
     // Keep trying to detect shared memory
     this.startDetectionRetry()
@@ -87,13 +71,6 @@ export class TelemetryReader {
       case 'sharedmemory': {
         const sharedMemoryData = this.sharedMemoryReader.readRPMData()
         if (sharedMemoryData) {
-          console.log('🔍 Telemetry reader - Raw shared memory data:', { 
-            rpm: sharedMemoryData.rpm, 
-            speed: sharedMemoryData.speed, 
-            gear: sharedMemoryData.gear,
-            throttle: sharedMemoryData.throttle,
-            brake: sharedMemoryData.brake
-          })
           this.connectionStatus = 'Connected via Shared Memory'
           return sharedMemoryData
         } else {

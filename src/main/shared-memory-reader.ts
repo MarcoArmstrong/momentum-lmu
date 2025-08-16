@@ -23,29 +23,16 @@ const SECTION_MAP_READ = 0x0004
 
 // rF2 Shared Memory Data Structure (based on TinyPedal's pyRfactor2SharedMemory)
 interface rF2Data {
+  buildVersionNumber: number
+  gameMode: number
+  raceState: number
   rpm: number
   maxRpm: number
   speed: number
   gear: number
   engineMaxRpm: number
-  buildVersionNumber: number
-  gameMode: number
-  raceState: number
-  lapNumber: number
-  lapTime: number
-  lastLapTime: number
-  bestLapTime: number
-  fuel: number
-  maxFuel: number
-  brake: number
   throttle: number
-  clutch: number
-  steering: number
-  trackTemp: number
-  ambientTemp: number
-  weatherType: number
-  trackName: string
-  carName: string
+  brake: number
 }
 
 export class SharedMemoryReader {
@@ -58,14 +45,8 @@ export class SharedMemoryReader {
   private workingMemoryName: string | null = null
   private workingAccessMethod: number | null = null
 
-  // rFactor 2 shared memory name - this is the main telemetry object that contains all vehicle data
-  private sharedMemoryNames = [
-    '$rFactor2SMMP_Telemetry$',
-    'Local\\rFactor2SMMPData',
-    'Local\\rFactor2SMMPTelemetry',
-    'Local\\LeMansUltimateTelemetry',
-    'Local\\LeMansUltimateData'
-  ]
+  // rFactor 2 shared memory name
+  private sharedMemoryNames = ['$rFactor2SMMP_Telemetry$']
 
   constructor() {
     // Start with a delay to allow the app to fully initialize
@@ -176,83 +157,32 @@ export class SharedMemoryReader {
 
       // Vehicle 0 starts at offset 0x10, so add this to all vehicle-specific offsets
       const VEHICLE_OFFSET = 0x10
-      
-      // Telemetry data offsets for Le Mans Ultimate
-      const gear = view.getInt32(VEHICLE_OFFSET + 0x160, true) // mGear - FOUND CORRECT OFFSET!
-      const rpm = view.getFloat64(VEHICLE_OFFSET + 0x164, true) // mEngineRPM - should be double
-      const maxRpm = view.getFloat64(VEHICLE_OFFSET + 0x1F8, true) // mEngineMaxRPM - should be double
 
-                      // Speed - using LocalVel vector magnitude (correct calculation based on official rF2 structure)
-        let speed = 0
-        
-        // Read LocalVel vector components (X, Y, Z) from correct offsets using double (float64)
-        // Based on official rF2 structure: mLocalVel at 0xB8, each component is 8 bytes (double)
-        const localVelX = view.getFloat64(VEHICLE_OFFSET + 0xB8, true) // LocalVel X (double)
-        const localVelY = view.getFloat64(VEHICLE_OFFSET + 0xC0, true) // LocalVel Y (double)  
-        const localVelZ = view.getFloat64(VEHICLE_OFFSET + 0xC8, true) // LocalVel Z (double)
-        
-        // Calculate speed as magnitude of velocity vector: sqrt(x² + y² + z²)
-        const speedMagnitude = Math.sqrt(localVelX * localVelX + localVelY * localVelY + localVelZ * localVelZ)
-        speed = speedMagnitude * 3.6 // Convert m/s to km/h
-        
-        // Basic validation - filter out invalid values
-        if (isNaN(speed) || !isFinite(speed) || speed < 0 || speed > 500) {
-          speed = 0
-        }
+      // Read essential telemetry data
+      const gear = view.getInt32(VEHICLE_OFFSET + 0x160, true) // mGear
+      const rpm = view.getFloat64(VEHICLE_OFFSET + 0x164, true) // mEngineRPM
+      const maxRpm = view.getFloat64(VEHICLE_OFFSET + 0x1f8, true) // mEngineMaxRPM
+
+      // Speed - using LocalVel vector magnitude
+      const localVelX = view.getFloat64(VEHICLE_OFFSET + 0xb8, true) // LocalVel X
+      const localVelY = view.getFloat64(VEHICLE_OFFSET + 0xc0, true) // LocalVel Y
+      const localVelZ = view.getFloat64(VEHICLE_OFFSET + 0xc8, true) // LocalVel Z
+      const speedMagnitude = Math.sqrt(
+        localVelX * localVelX + localVelY * localVelY + localVelZ * localVelZ
+      )
+      const speed = speedMagnitude * 3.6 // Convert m/s to km/h
 
       const data: rF2Data = {
         buildVersionNumber: buildVersionNumber,
         gameMode: view.getInt32(0x4, true),
         raceState: view.getInt32(0x8, true),
-        rpm: rpm, // Correct RPM from mEngineRPM
-        maxRpm: maxRpm, // Correct Max RPM from mEngineMaxRPM
-        speed: speed, // Correct speed from mLocalVel magnitude
-        gear: gear, // Correct gear from mGear
-        engineMaxRpm: maxRpm, // Use the same maxRpm value
-        lapNumber: view.getInt32(0x14, true), // mLapNumber
-        lapTime: view.getFloat64(0x18, true), // mLapStartET
-        lastLapTime: 0, // Not available in this structure
-        bestLapTime: 0, // Not available in this structure
-        fuel: view.getFloat64(0x20c, true), // mFuel
-        maxFuel: 0, // Not available in this structure
-        brake: view.getFloat64(VEHICLE_OFFSET + 0x18c, true), // mUnfilteredBrake - correct rF2 offset
-        throttle: view.getFloat64(VEHICLE_OFFSET + 0x184, true), // mUnfilteredThrottle - correct rF2 offset
-        clutch: view.getFloat64(0x19c, true), // mUnfilteredClutch
-        steering: view.getFloat64(0x194, true), // mUnfilteredSteering
-        trackTemp: 0, // Not available in this structure
-        ambientTemp: 0, // Not available in this structure
-        weatherType: 0, // Not available in this structure
-        trackName: this.readString(buffer, 0x60, 64), // mTrackName
-        carName: this.readString(buffer, 0x20, 64) // mVehicleName
-      }
-
-      // Validate and fix throttle/brake values
-      if (isNaN(data.throttle) || !isFinite(data.throttle) || data.throttle < 0 || data.throttle > 1) {
-        // Try float32 as fallback
-        try {
-          const throttleFloat32 = view.getFloat32(VEHICLE_OFFSET + 0x184, true)
-          if (throttleFloat32 >= 0 && throttleFloat32 <= 1) {
-            data.throttle = throttleFloat32
-          } else {
-            data.throttle = 0
-          }
-        } catch {
-          data.throttle = 0
-        }
-      }
-      
-      if (isNaN(data.brake) || !isFinite(data.brake) || data.brake < 0 || data.brake > 1) {
-        // Try float32 as fallback
-        try {
-          const brakeFloat32 = view.getFloat32(VEHICLE_OFFSET + 0x18c, true)
-          if (brakeFloat32 >= 0 && brakeFloat32 <= 1) {
-            data.brake = brakeFloat32
-          } else {
-            data.brake = 0
-          }
-        } catch {
-          data.brake = 0
-        }
+        rpm: rpm,
+        maxRpm: maxRpm,
+        speed: speed,
+        gear: gear,
+        engineMaxRpm: maxRpm,
+        throttle: view.getFloat64(VEHICLE_OFFSET + 0x184, true), // mUnfilteredThrottle
+        brake: view.getFloat64(VEHICLE_OFFSET + 0x18c, true), // mUnfilteredBrake
       }
 
       // Basic data validation
@@ -262,7 +192,12 @@ export class SharedMemoryReader {
       if (isNaN(data.rpm) || !isFinite(data.rpm) || data.rpm < 0 || data.rpm > 50000) {
         data.rpm = 0 // Default to 0 if invalid
       }
-      if (isNaN(data.maxRpm) || !isFinite(data.maxRpm) || data.maxRpm < 1000 || data.maxRpm > 20000) {
+      if (
+        isNaN(data.maxRpm) ||
+        !isFinite(data.maxRpm) ||
+        data.maxRpm < 1000 ||
+        data.maxRpm > 20000
+      ) {
         data.maxRpm = 8000 // Default max RPM if invalid
       }
 
@@ -290,16 +225,6 @@ export class SharedMemoryReader {
       this.initSharedMemory()
       return this.isConnected
     }
-  }
-
-
-
-  private readString(buffer: Uint8Array, offset: number, length: number): string {
-    const bytes = buffer.slice(offset, offset + length)
-    // Find null terminator
-    const nullIndex = bytes.findIndex((byte) => byte === 0)
-    const endIndex = nullIndex !== -1 ? nullIndex : length
-    return new TextDecoder('utf-8').decode(bytes.slice(0, endIndex)).trim()
   }
 
   private cleanup(): void {
