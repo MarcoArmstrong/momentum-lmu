@@ -17,6 +17,7 @@ declare global {
       getConnectionStatus: () => Promise<string>
       getConnectionMethod: () => Promise<string>
       getDebugInfo: () => Promise<object>
+      testTelemetryWindow: () => Promise<{ success: boolean; message: string }>
     }
   }
 }

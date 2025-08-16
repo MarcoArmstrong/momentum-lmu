@@ -1,14 +1,16 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { TelemetryReader } from './telemetry-reader'
 
 let telemetryReader: TelemetryReader
+let mainWindow: BrowserWindow
+let telemetryWindow: BrowserWindow
 
-function createWindow(): void {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
+function createMainWindow(): void {
+  // Create the main browser window.
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -39,6 +41,54 @@ function createWindow(): void {
   }
 }
 
+function createTelemetryWindow(): void {
+  console.log('🔧 Creating telemetry window...')
+  
+  // Create the telemetry overlay window.
+  telemetryWindow = new BrowserWindow({
+    width: 300,
+    height: 500,
+    show: false,
+    autoHideMenuBar: true,
+    alwaysOnTop: true,
+    frame: false, // Remove window frame for overlay look
+    transparent: true, // Make background transparent
+    resizable: false,
+    skipTaskbar: true, // Don't show in taskbar
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  telemetryWindow.on('ready-to-show', () => {
+    console.log('✅ Telemetry window ready to show')
+    telemetryWindow.show()
+  })
+
+  telemetryWindow.webContents.on('did-finish-load', () => {
+    console.log('✅ Telemetry window finished loading')
+  })
+
+  telemetryWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Telemetry window failed to load:', errorCode, errorDescription)
+  })
+
+  // Load the telemetry HTML file
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    // In development, load from the dev server
+    const telemetryUrl = `${process.env['ELECTRON_RENDERER_URL']}/telemetry.html`
+    console.log('📁 Loading telemetry from URL:', telemetryUrl)
+    telemetryWindow.loadURL(telemetryUrl)
+  } else {
+    // In production, load from file
+    const telemetryPath = join(__dirname, '../renderer/telemetry.html')
+    console.log('📁 Loading telemetry from file:', telemetryPath)
+    telemetryWindow.loadFile(telemetryPath)
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -52,12 +102,36 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
     
-    // Add keyboard shortcut to toggle always-on-top (Ctrl+Shift+T)
+    // Add keyboard shortcuts for window management
     window.webContents.on('before-input-event', (_event, input) => {
+      // Toggle always-on-top for main window (Ctrl+Shift+T)
       if (input.control && input.shift && input.key.toLowerCase() === 't') {
         const isOnTop = window.isAlwaysOnTop()
         window.setAlwaysOnTop(!isOnTop)
-        console.log(`Always on top: ${!isOnTop ? 'enabled' : 'disabled'}`)
+        console.log(`Main window always on top: ${!isOnTop ? 'enabled' : 'disabled'}`)
+      }
+      
+      // Toggle telemetry window visibility (Ctrl+Shift+H)
+      if (input.control && input.shift && input.key.toLowerCase() === 'h') {
+        if (telemetryWindow) {
+          const isVisible = telemetryWindow.isVisible()
+          if (isVisible) {
+            telemetryWindow.hide()
+            console.log('Telemetry window hidden')
+          } else {
+            telemetryWindow.show()
+            console.log('Telemetry window shown')
+          }
+        }
+      }
+      
+      // Move telemetry window to top-right corner (Ctrl+Shift+R)
+      if (input.control && input.shift && input.key.toLowerCase() === 'r') {
+        if (telemetryWindow) {
+          const { width } = screen.getPrimaryDisplay().workAreaSize
+          telemetryWindow.setPosition(width - 320, 20)
+          console.log('Telemetry window moved to top-right')
+        }
       }
     })
   })
@@ -87,13 +161,23 @@ app.whenReady().then(() => {
   ipcMain.handle('get-debug-info', () => {
     return telemetryReader.getDebugInfo()
   })
+  
+  // Test IPC handler for telemetry window
+  ipcMain.handle('test-telemetry-window', () => {
+    console.log('🧪 Test telemetry window IPC called')
+    return { success: true, message: 'Telemetry window IPC is working' }
+  })
 
-  createWindow()
+  createMainWindow()
+  createTelemetryWindow()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createMainWindow()
+      createTelemetryWindow()
+    }
   })
 })
 

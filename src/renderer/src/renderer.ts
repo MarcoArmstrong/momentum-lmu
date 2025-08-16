@@ -1,42 +1,21 @@
 function init(): void {
   window.addEventListener('DOMContentLoaded', () => {
-    initTelemetry()
+    console.log('🔧 Main window loaded, initializing connection status...')
+    initConnectionStatus()
   })
 }
 
-function initTelemetry(): void {
-  // Start telemetry polling
+function initConnectionStatus(): void {
+  // Start connection status polling (less frequent since we don't need real-time telemetry here)
   setInterval(async () => {
     try {
       const isRunning = await window.api.isGameRunning()
       await updateConnectionStatus(isRunning)
-      
-      if (isRunning) {
-        const data = await window.api.getRpmData()
-        if (data) {
-          updateTelemetryDisplay(data)
-        }
-      }
     } catch (error) {
-      console.error('Error reading telemetry:', error)
+      console.error('Error checking connection:', error)
       updateConnectionStatus(false)
     }
-  }, 50) // Update every 50ms for more responsive UI
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function updateTelemetryDisplay(data: any): void {
-  replaceText('#rpm', Math.round(data.rpm).toString())
-  replaceText('#maxRpm', Math.round(data.maxRpm).toString())
-  replaceText('#speed', data.speed.toFixed(0)) // Speed is already in km/h from shared memory
-  replaceText('#gear', `Raw: ${data.gear} (${typeof data.gear})`)
-  
-  // Display throttle and brake as percentages (0-100%)
-  const throttlePercent = Math.round((data.throttle || 0) * 100)
-  const brakePercent = Math.round((data.brake || 0) * 100)
-  
-  replaceText('#throttle', `${throttlePercent}%`)
-  replaceText('#brake', `${brakePercent}%`)
+  }, 1000) // Update every second for connection status
 }
 
 async function updateConnectionStatus(isConnected: boolean): Promise<void> {
@@ -71,13 +50,6 @@ async function updateConnectionStatus(isConnected: boolean): Promise<void> {
     } catch {
       debugElement.textContent = 'Error loading debug info'
     }
-  }
-}
-
-function replaceText(selector: string, text: string): void {
-  const element = document.querySelector<HTMLElement>(selector)
-  if (element) {
-    element.innerText = text
   }
 }
 
