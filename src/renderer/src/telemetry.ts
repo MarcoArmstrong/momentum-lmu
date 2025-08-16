@@ -45,7 +45,7 @@ function updateTelemetryDisplay(data: any): void {
   replaceTelemetryText('#rpm', Math.round(data.rpm).toString())
   replaceTelemetryText('#maxRpm', Math.round(data.maxRpm).toString())
   replaceTelemetryText('#speed', data.speed.toFixed(0)) // Speed is already in km/h from shared memory
-  replaceTelemetryText('#gear', `Raw: ${data.gear} (${typeof data.gear})`)
+  replaceTelemetryText('#gear', data.gear)
   
   // Display throttle and brake as percentages (0-100%)
   const throttlePercent = Math.round((data.throttle || 0) * 100)
@@ -94,14 +94,10 @@ function updateLockUI(): void {
   
   if (telemetryContainer) {
     if (isLocked) {
-      telemetryContainer.style.cursor = 'default'
-      telemetryContainer.style.userSelect = 'auto'
-      telemetryContainer.style.border = 'none'
+      telemetryContainer.classList.remove('is-unlocked')
     } else {
-      telemetryContainer.style.cursor = 'move'
-      telemetryContainer.style.userSelect = 'none'
       // Add a subtle visual indicator
-      telemetryContainer.style.border = '2px solid #3b82f6'
+      telemetryContainer.classList.add('is-unlocked')
     }
   }
   
