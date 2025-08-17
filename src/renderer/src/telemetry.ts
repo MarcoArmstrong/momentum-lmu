@@ -10,8 +10,8 @@ const canvasWidth = canvas.width
 const canvasHeight = canvas.height
 
 const colors: Record<string, string> = {
-  throttle: '#33CC00',
-  brake: '#E1251B'
+  throttle: '#00d492', // emerald-400
+  brake: '#ff6467' // red-400
 }
 
 const dataPoints: Record<string, number[]> = {
@@ -90,7 +90,7 @@ function updateTelemetryDisplay(data: any): void {
 function drawGraph(): void {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
   
-  const padding = 2
+  const padding = 0
   const usableHeight = canvasHeight - padding * 2
   
   for (const pedal of ['throttle', 'brake']) {
@@ -98,7 +98,7 @@ function drawGraph(): void {
     const values = dataPoints[pedal]
     ctx.beginPath()
     ctx.strokeStyle = color
-    ctx.lineWidth = 1.5 // Use integer line width for crisp rendering
+    ctx.lineWidth = 2 // Use integer line width for crisp rendering
     ctx.lineCap = 'round' // Round line caps for smoother appearance
     ctx.lineJoin = 'round' // Round line joins for smoother curves
     
