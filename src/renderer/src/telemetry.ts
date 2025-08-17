@@ -1,9 +1,26 @@
+// Canvas and graph setup
+const canvas = document.getElementById('pedalsGraph') as HTMLCanvasElement
+const ctx = canvas.getContext('2d')!
+const canvasWidth = canvas.width
+const canvasHeight = canvas.height
+
+const colors: Record<string, string> = {
+  throttle: '#33CC00',
+  brake: '#E1251B'
+}
+
+const dataPoints: Record<string, number[]> = {
+  throttle: new Array(canvasWidth).fill(0),
+  brake: new Array(canvasWidth).fill(0)
+}
+
 function initTelemetryWindow(): void {
   console.log('🚀 Telemetry window script loaded!')
   window.addEventListener('DOMContentLoaded', () => {
     console.log('📱 Telemetry window DOM loaded!')
     initTelemetryData()
     initLockFunctionality()
+    animateGraph()
   })
 }
 
@@ -53,6 +70,50 @@ function updateTelemetryDisplay(data: any): void {
   
   replaceTelemetryText('#throttle', `${throttlePercent}%`)
   replaceTelemetryText('#brake', `${brakePercent}%`)
+  
+  // Update pedal graph
+  updatePedalGraph(data.throttle || 0, data.brake || 0)
+}
+
+function drawGraph(): void {
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  
+  const padding = 2
+  const usableHeight = canvasHeight - padding * 2
+  
+  for (const pedal of ['throttle', 'brake']) {
+    const color = colors[pedal]
+    const values = dataPoints[pedal]
+    ctx.beginPath()
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.5
+    
+    for (let i = 0; i < values.length; i++) {
+      const val = values[values.length - 1 - i]
+      const x = canvasWidth - 1 - i
+      const y = padding + (1 - val) * usableHeight
+      if (i == 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    
+    ctx.stroke()
+  }
+}
+
+function updatePedalGraph(throttle: number, brake: number): void {
+  dataPoints.throttle.push(throttle)
+  dataPoints.brake.push(brake)
+  
+  dataPoints.throttle = dataPoints.throttle.slice(-canvasWidth)
+  dataPoints.brake = dataPoints.brake.slice(-canvasWidth)
+}
+
+function animateGraph(): void {
+  drawGraph()
+  requestAnimationFrame(animateGraph)
 }
 
 async function updateTelemetryConnectionStatus(isConnected: boolean): Promise<void> {

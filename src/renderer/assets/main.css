@@ -18,3 +18,8 @@
     user-select: none;
   }
 }
+
+/* Pedal graph styles */
+#pedalsGraph {
+  image-rendering: crisp-edges;
+}
