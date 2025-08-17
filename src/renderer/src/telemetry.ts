@@ -1,6 +1,11 @@
 // Canvas and graph setup
 const canvas = document.getElementById('pedalsGraph') as HTMLCanvasElement
 const ctx = canvas.getContext('2d')!
+
+// Improve canvas rendering quality
+ctx.imageSmoothingEnabled = false // Disable anti-aliasing for crisp lines
+ctx.imageSmoothingQuality = 'high'
+
 const canvasWidth = canvas.width
 const canvasHeight = canvas.height
 
@@ -68,8 +73,15 @@ function updateTelemetryDisplay(data: any): void {
   const throttlePercent = Math.round((data.throttle || 0) * 100)
   const brakePercent = Math.round((data.brake || 0) * 100)
   
-  replaceTelemetryText('#throttle', `${throttlePercent}%`)
-  replaceTelemetryText('#brake', `${brakePercent}%`)
+  replaceTelemetryText('#throttle', `${throttlePercent}`)
+  replaceTelemetryText('#brake', `${brakePercent}`)
+
+  // Update throttle and brake bars
+  const throttleBar = document.getElementById('throttleBar') as HTMLDivElement
+  const brakeBar = document.getElementById('brakeBar') as HTMLDivElement
+  
+  throttleBar.style.height = `${throttlePercent}%`
+  brakeBar.style.height = `${brakePercent}%`
   
   // Update pedal graph
   updatePedalGraph(data.throttle || 0, data.brake || 0)
@@ -86,7 +98,9 @@ function drawGraph(): void {
     const values = dataPoints[pedal]
     ctx.beginPath()
     ctx.strokeStyle = color
-    ctx.lineWidth = 1.5
+    ctx.lineWidth = 1.5 // Use integer line width for crisp rendering
+    ctx.lineCap = 'round' // Round line caps for smoother appearance
+    ctx.lineJoin = 'round' // Round line joins for smoother curves
     
     for (let i = 0; i < values.length; i++) {
       const val = values[values.length - 1 - i]

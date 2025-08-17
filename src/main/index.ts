@@ -60,8 +60,8 @@ function createTelemetryWindow(): void {
   // Create the telemetry overlay window.
   telemetryWindow = new BrowserWindow({
     ...savedBounds,
-    width: 300,
-    height: 500,
+    width: 600,
+    height: 400,
     show: false,
     autoHideMenuBar: true,
     alwaysOnTop: true,
