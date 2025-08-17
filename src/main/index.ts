@@ -83,7 +83,7 @@ function createTelemetryWindow(): void {
   })
 
   // Set initial mouse event handling (locked by default)
-  telemetryWindow.setIgnoreMouseEvents(true, { forward: true })
+  telemetryWindow.setIgnoreMouseEvents(true, { forward: false })
 
   // Close all windows and quit app when telemetry window is closed
   telemetryWindow.on('closed', () => {
@@ -113,7 +113,16 @@ function createTelemetryWindow(): void {
   // 🔒 F7 toggle lock
   globalShortcut.register('F7', () => {
     isLocked = !isLocked
-    telemetryWindow.setIgnoreMouseEvents(isLocked, { forward: true })
+    
+    if (isLocked) {
+      // When locked, ignore mouse events but DON'T forward them to avoid coordinate issues
+      // This prevents the main window from receiving incorrect mouse coordinates
+      telemetryWindow.setIgnoreMouseEvents(true, { forward: false })
+    } else {
+      // When unlocked, allow mouse events for dragging the telemetry window
+      telemetryWindow.setIgnoreMouseEvents(false, { forward: false })
+    }
+    
     telemetryWindow.webContents.send('telemetry-lock-changed', isLocked)
     console.log(`🔒 Telemetry window ${isLocked ? 'locked' : 'unlocked'}`)
 
