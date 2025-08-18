@@ -14,7 +14,7 @@
 
   <body class="bg-transparent text-white">
     <div id="app" class="telemetry-container || p-2 rounded-sm">
-      <div class="flex justify-center items-center bg-gray-900/90 p-4 border border-gray-800 rounded-sm">
+      <div class="flex justify-center items-center bg-gray-900/80 p-2 border border-gray-800 rounded-sm">
         
         <div class="grid grid-cols-2 gap-3 hidden">
           <div class="bg-gray-800/80 p-2">
@@ -40,16 +40,16 @@
         
         <!-- Pedal Graph -->
         <div class="flex gap-2">
-          <canvas id="pedalsGraph" width="300" height="100" class="w-[300px] h-[100px] bg-gray-800/50 border border-gray-700 rounded-sm"></canvas>
-          <div class="bg-gray-800/50 border border-gray-700 w-8 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
-            <div id="throttle" class="text-sm text-emerald-400 border-b border-gray-700 w-full font-bold">--</div>
+          <canvas id="pedalsGraph" width="250" height="75" class="w-[250px] h-[75px] bg-gray-800/50 border border-gray-700 rounded-sm"></canvas>
+          <div class="bg-gray-800/50 border border-gray-700 w-6 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
+            <div id="throttle" class="text-[10px] text-emerald-400 border-b border-gray-700 w-full font-bold">--</div>
             <div class="flex flex-col items-center justify-end h-full w-full">
               <div id="throttleBar" class="w-full h-0 bg-emerald-400" style="height: 0%"></div>
             </div>
           </div>
           
-          <div class="bg-gray-800/50 border border-gray-700 w-8 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
-            <div id="brake" class="text-sm text-red-400 border-b border-gray-700 w-full font-bold">--</div>
+          <div class="bg-gray-800/50 border border-gray-700 w-6 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
+            <div id="brake" class="text-[10px] text-red-400 border-b border-gray-700 w-full font-bold">--</div>
             <div class="flex flex-col items-center justify-end h-full w-full">
               <div id="brakeBar" class="w-full h-0 bg-red-400" style="height: 0%"></div>
             </div>

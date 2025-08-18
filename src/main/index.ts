@@ -54,14 +54,14 @@ function createMainWindow(): void {
 function createTelemetryWindow(): void {
   console.log('🔧 Creating telemetry window...')
   
-  const defaults = { x: 100, y: 100, width:32, height: 400 }
+  const defaults = { x: 100, y: 100, width:356, height: 356 }
   const savedBounds = { ...defaults, ...loadWindowState(defaults) }
   
   // Create the telemetry overlay window.
   telemetryWindow = new BrowserWindow({
     ...savedBounds,
-    width: 432,
-    height: 400,
+    width: 356,
+    height: 356,
     show: false,
     autoHideMenuBar: true,
     alwaysOnTop: true,
