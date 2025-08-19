@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-lmu-900: #021a38;
+  --color-lmu-500: #0b5ab8;
+  --color-throttle: #00ff00;
+  --color-brake: #ff1e44;
+}
+
 /* Draggable zone styles */
 .-webkit-app-region-drag {
   -webkit-app-region: drag;

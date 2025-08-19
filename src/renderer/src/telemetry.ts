@@ -10,8 +10,8 @@ const canvasWidth = canvas.width
 const canvasHeight = canvas.height
 
 const colors: Record<string, string> = {
-  throttle: '#00d492', // emerald-400
-  brake: '#ff6467' // red-400
+  throttle: '#00ff00', // emerald-400
+  brake: '#ff1e44' // red-400
 }
 
 const dataPoints: Record<string, number[]> = {
