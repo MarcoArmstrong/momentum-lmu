@@ -45,17 +45,18 @@
           <!-- Pedal Graph -->
           <div class="flex gap-1">
             <canvas id="pedalsGraph" width="250" height="75" class="w-[250px] h-[75px] bg-gray-950/50 border border-gray-400/20 rounded-sm"></canvas>
-            <div class="relative bg-gray-950/50 border border-gray-400/20 w-7 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
-              <div id="throttle" class="absolute top-0 left-0 text-[12px] text-white w-full font-bold text-shadow-xs text-shadow-gray-900/100">--</div>
-              <div class="flex flex-col items-center justify-end h-full w-full">
-                <div id="throttleBar" class="w-full h-0 bg-throttle" style="height: 0%"></div>
-              </div>
-            </div>
             
             <div class="relative bg-gray-950/50 border border-gray-400/20 w-7 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
-              <div id="brake" class="absolute top-0 left-0 text-[12px] text-white w-full font-bold text-shadow-xs text-shadow-gray-900/100">--</div>
+              <div id="brake" class="absolute top-0 left-0 text-[12px] text-white w-full font-bold text-shadow-xs text-shadow-gray-900/100">0</div>
               <div class="flex flex-col items-center justify-end h-full w-full">
                 <div id="brakeBar" class="w-full h-0 bg-brake" style="height: 0%"></div>
+              </div>
+            </div>
+
+            <div class="relative bg-gray-950/50 border border-gray-400/20 w-7 text-center flex flex-col items-center justify-between rounded-sm overflow-hidden">
+              <div id="throttle" class="absolute top-0 left-0 text-[12px] text-white w-full font-bold text-shadow-xs text-shadow-gray-900/100">0</div>
+              <div class="flex flex-col items-center justify-end h-full w-full">
+                <div id="throttleBar" class="w-full h-0 bg-throttle" style="height: 0%"></div>
               </div>
             </div>
           </div>
