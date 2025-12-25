@@ -1,4 +1,5 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { join } from 'path'
 
 export default defineConfig({
   main: {
@@ -10,6 +11,14 @@ export default defineConfig({
   renderer: {
     css: {
       postcss: './postcss.config.js'
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          main: join(__dirname, 'src/renderer/index.html'),
+          telemetry: join(__dirname, 'src/renderer/telemetry.html')
+        }
+      }
     }
   }
 })
