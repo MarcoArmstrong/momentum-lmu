@@ -57,9 +57,25 @@ function createTelemetryWindow(): void {
   const defaults = { x: 100, y: 100, width: 356, height: 356 }
   const savedBounds = { ...defaults, ...loadWindowState(defaults) }
   
+  // Validate and ensure window is on screen
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+  const { x: screenX, y: screenY } = primaryDisplay.workArea
+  
+  // Ensure saved position is within screen bounds
+  let x = savedBounds.x || defaults.x
+  let y = savedBounds.y || defaults.y
+  
+  // Clamp position to screen bounds
+  x = Math.max(screenX, Math.min(x, screenX + screenWidth - 356))
+  y = Math.max(screenY, Math.min(y, screenY + screenHeight - 356))
+  
+  console.log(`📍 Window position: x=${x}, y=${y}, screen: ${screenWidth}x${screenHeight}`)
+  
   // Create the telemetry overlay window.
   telemetryWindow = new BrowserWindow({
-    ...savedBounds,
+    x,
+    y,
     width: 356,
     height: 356,
     show: false,
@@ -67,6 +83,7 @@ function createTelemetryWindow(): void {
     alwaysOnTop: true,
     frame: false, // Remove window frame for overlay look
     transparent: true, // Make background transparent
+    backgroundColor: '#00000000', // Fully transparent background (required on Windows)
     resizable: false,
     skipTaskbar: true, // Don't show in taskbar
     focusable: false, // Prevent focus to avoid interfering with game
@@ -77,13 +94,59 @@ function createTelemetryWindow(): void {
     }
   })
 
+  // Set initial mouse event handling (locked by default) - but do it after window is shown
+  let isLocked = true
+  
   telemetryWindow.on('ready-to-show', () => {
     console.log('✅ Telemetry window ready to show')
+    const bounds = telemetryWindow.getBounds()
+    console.log(`📍 Window bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}`)
+    console.log(`👁️ Window visible before show: ${telemetryWindow.isVisible()}`)
+    
     telemetryWindow.show()
+    
+    // Bring to front on Windows
+    if (process.platform === 'win32') {
+      telemetryWindow.setAlwaysOnTop(true, 'screen-saver')
+      telemetryWindow.moveTop()
+    }
+    
+    // Set mouse event handling AFTER window is shown (important on Windows)
+    telemetryWindow.setIgnoreMouseEvents(true, { forward: false })
+    
+    // Ensure window is actually visible
+    const isVisible = telemetryWindow.isVisible()
+    console.log(`👁️ Window visible after show: ${isVisible}`)
+    if (!isVisible) {
+      console.log('⚠️ Window not visible after ready-to-show, forcing show...')
+      telemetryWindow.show()
+      // Try bringing to front again
+      telemetryWindow.setAlwaysOnTop(true)
+      if (process.platform === 'win32') {
+        telemetryWindow.moveTop()
+      }
+    }
   })
-
-  // Set initial mouse event handling (locked by default)
-  telemetryWindow.setIgnoreMouseEvents(true, { forward: false })
+  
+  // Fallback timeout to ensure window shows (in case ready-to-show doesn't fire)
+  setTimeout(() => {
+    if (telemetryWindow && !telemetryWindow.isDestroyed()) {
+      const isVisible = telemetryWindow.isVisible()
+      const bounds = telemetryWindow.getBounds()
+      console.log(`⏱️ Timeout check - Visible: ${isVisible}, Bounds: x=${bounds.x}, y=${bounds.y}`)
+      
+      if (!isVisible) {
+        console.log('⚠️ Window not visible after timeout, forcing show...')
+        telemetryWindow.show()
+        telemetryWindow.setAlwaysOnTop(true)
+        if (process.platform === 'win32') {
+          telemetryWindow.moveTop()
+        }
+        // Set mouse events after showing
+        telemetryWindow.setIgnoreMouseEvents(true, { forward: false })
+      }
+    }
+  }, 2000)
 
   // Close all windows and quit app when telemetry window is closed
   telemetryWindow.on('closed', () => {
@@ -96,14 +159,34 @@ function createTelemetryWindow(): void {
 
   telemetryWindow.webContents.on('did-finish-load', () => {
     console.log('✅ Telemetry window finished loading')
+    const bounds = telemetryWindow.getBounds()
+    console.log(`📍 Window bounds after load: x=${bounds.x}, y=${bounds.y}`)
+    console.log(`👁️ Window visible after load: ${telemetryWindow.isVisible()}`)
+    
+    // Fallback: ensure window is shown even if ready-to-show didn't fire
+    if (!telemetryWindow.isVisible()) {
+      console.log('⚠️ Window not visible after load, forcing show...')
+      telemetryWindow.show()
+      telemetryWindow.setAlwaysOnTop(true)
+      if (process.platform === 'win32') {
+        telemetryWindow.moveTop()
+      }
+    }
+    
+    // Open DevTools in development to help debug
+    if (is.dev) {
+      // Uncomment to open DevTools for debugging
+      // telemetryWindow.webContents.openDevTools()
+    }
   })
 
   telemetryWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('❌ Telemetry window failed to load:', errorCode, errorDescription)
+    // Still try to show the window even if load failed
+    telemetryWindow.show()
   })
 
   // Save position when window is moved (only when unlocked)
-  let isLocked = true
   telemetryWindow.on('move', () => {
     if (isLocked) return
     const bounds = telemetryWindow.getBounds()
@@ -171,13 +254,20 @@ app.whenReady().then(() => {
       
       // Toggle telemetry window visibility (Ctrl+Shift+H)
       if (input.control && input.shift && input.key.toLowerCase() === 'h') {
-        if (telemetryWindow) {
+        if (telemetryWindow && !telemetryWindow.isDestroyed()) {
           const isVisible = telemetryWindow.isVisible()
+          const bounds = telemetryWindow.getBounds()
+          console.log(`🔍 Toggle check - Visible: ${isVisible}, Bounds: x=${bounds.x}, y=${bounds.y}`)
+          
           if (isVisible) {
             telemetryWindow.hide()
             console.log('Telemetry window hidden')
           } else {
             telemetryWindow.show()
+            telemetryWindow.setAlwaysOnTop(true)
+            if (process.platform === 'win32') {
+              telemetryWindow.moveTop()
+            }
             console.log('Telemetry window shown')
           }
         }
